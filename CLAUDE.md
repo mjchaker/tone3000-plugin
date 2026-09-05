@@ -150,7 +150,11 @@ to re-anchor these. Never edit `libs/` directly; it is gitignored and regenerate
 - **UI units**: every length is authored in `rem` against a 1024x578 design box;
   `useUiScale` sets the root font-size so `1rem` equals one design pixel. Raw `px`
   is only for real viewport coordinates and must be scaled with `getUiScale()`.
-  Styling is inline with tokens from `ui/src/components/theme.ts`.
+  Styling is inline with tokens from `ui/src/components/theme.ts`. Chrome is
+  Liquid Glass: surfaces take the `glass` / `glass-clear` / `glass-prominent`
+  classes from `ui/src/index.css` (via the `GLASS_*_CLASS` tokens) plus an
+  inline radius from `RADIUS_SHEET` / `RADIUS_PANEL` / `RADIUS_CHIP` or a capsule;
+  nothing paints an opaque panel over the root's `AMBIENT_BACKGROUND`.
 - **WebKit floor**: `vite.config.ts` pins `build.target` to `safari13` because the
   plugin runs in old system WebKits. Do not raise it or use syntax it cannot parse;
   a parse error is a silent black window.

@@ -1,7 +1,21 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { ChevronDown } from './icons';
 import { useDismissable } from '../hooks/useDismissable';
-import { MUTED, SUBTLE, BRAND_RED, BRAND_YELLOW, WHITE } from './theme';
+import {
+  BLACK,
+  BRAND_RED,
+  BRAND_YELLOW,
+  GLASS_BORDER,
+  MUTED,
+  RADIUS_CHIP,
+  RADIUS_PANEL,
+  SUBTLE,
+  SURFACE,
+  WHITE,
+  glassClearStyle,
+  glassStyle,
+  segmentedSelectedStyle,
+} from './theme';
 
 /**
  * Shared form primitives for settings-style surfaces (Settings takeover,
@@ -10,15 +24,16 @@ import { MUTED, SUBTLE, BRAND_RED, BRAND_YELLOW, WHITE } from './theme';
  * borders, green pill switches, white radio/check indicators.
  */
 
-export const FIELD_BORDER = '1rem solid #3f3f46';
+/** Hairline inside glass panels (row seams); the same value as theme BORDER. */
+export const FIELD_BORDER = '1rem solid rgba(255, 255, 255, 0.10)';
 
 /** Vertical gap between top-level settings sections. */
-export const SECTION_GAP = 48;
+export const SECTION_GAP = 28;
 
 export const outlinedFieldStyle: React.CSSProperties = {
-  backgroundColor: 'transparent',
-  border: FIELD_BORDER,
-  borderRadius: '6rem',
+  backgroundColor: SURFACE,
+  border: GLASS_BORDER,
+  borderRadius: `${RADIUS_CHIP}rem`,
   color: '#ffffff',
   fontSize: '14rem',
   fontWeight: 400,
@@ -47,8 +62,8 @@ export const SettingsGroup: React.FC<{
 }> = ({ title, icon, children, style }) => (
   <section
     style={{
-      border: FIELD_BORDER,
-      borderRadius: '10rem',
+      ...glassClearStyle,
+      borderRadius: `${RADIUS_PANEL}rem`,
       padding: '20rem',
       marginBottom: `${SECTION_GAP}rem`,
       boxSizing: 'border-box',
@@ -93,10 +108,11 @@ export const descriptionStyle: React.CSSProperties = {
 export const ctaButtonStyle: React.CSSProperties = {
   width: '100%',
   padding: '12rem 16rem',
-  borderRadius: '10rem',
-  border: '1rem solid #ffffff',
-  backgroundColor: 'transparent',
-  color: '#ffffff',
+  borderRadius: '9999rem',
+  border: '1rem solid rgba(255, 255, 255, 0.9)',
+  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(232, 232, 238, 0.94))',
+  boxShadow: 'inset 0 1rem 0 rgba(255, 255, 255, 1), 0 10rem 28rem rgba(0, 0, 0, 0.45)',
+  color: BLACK,
   fontSize: '15rem',
   fontWeight: 400,
   cursor: 'pointer',
@@ -112,8 +128,8 @@ export const captionStyle: React.CSSProperties = {
   lineHeight: 1.45,
 };
 
-/** Green pill switch mirroring the web ToggleSimple: 40×24 track (zinc-500
-    off, #00D13B on), 16px white knob with a 4px inset, 300ms ease. */
+/** Switch in the glass vocabulary: a 42×26 capsule track, white when on
+    (near-black knob) and faint glass when off (white knob), 300ms ease. */
 export const PillToggle: React.FC<{ value: boolean; onChange: (value: boolean) => void }> = ({
   value,
   onChange,
@@ -124,28 +140,29 @@ export const PillToggle: React.FC<{ value: boolean; onChange: (value: boolean) =
     onClick={() => onChange(!value)}
     style={{
       position: 'relative',
-      width: '40rem',
-      height: '24rem',
-      borderRadius: '12rem',
-      border: 'none',
+      width: '42rem',
+      height: '26rem',
+      borderRadius: '13rem',
+      border: `1rem solid rgba(255, 255, 255, ${value ? 0.9 : 0.14})`,
       padding: 0,
       cursor: 'pointer',
-      backgroundColor: value ? '#00D13B' : '#71717a',
-      boxShadow: 'inset 0 2rem 4rem rgba(0, 0, 0, 0.15)',
+      backgroundColor: value ? 'rgba(255, 255, 255, 0.92)' : 'rgba(255, 255, 255, 0.10)',
+      boxShadow: 'inset 0 1rem 2rem rgba(0, 0, 0, 0.25)',
+      boxSizing: 'border-box',
       flexShrink: 0,
-      transition: 'background-color 0.3s ease-in-out',
+      transition: 'background-color 0.3s ease-in-out, border-color 0.3s ease-in-out',
     }}
   >
     <span
       style={{
         position: 'absolute',
-        top: '4rem',
-        left: '4rem',
-        width: '16rem',
-        height: '16rem',
+        top: '1rem',
+        left: '1rem',
+        width: '22rem',
+        height: '22rem',
         borderRadius: '50%',
-        backgroundColor: '#ffffff',
-        boxShadow: '0 1rem 2rem rgba(0, 0, 0, 0.3)',
+        backgroundColor: value ? '#0a0a0c' : 'rgba(255, 255, 255, 0.85)',
+        boxShadow: '0 1rem 3rem rgba(0, 0, 0, 0.45)',
         transform: value ? 'translateX(16rem)' : 'translateX(0)',
         transition: 'transform 0.3s ease-in-out',
         display: 'block',
@@ -226,9 +243,8 @@ export function SelectField<T extends string>({
             top: 'calc(100% + 4rem)',
             left: 0,
             right: 0,
-            borderRadius: '6rem',
-            background: '#000000',
-            border: FIELD_BORDER,
+            ...glassStyle,
+            borderRadius: `${RADIUS_PANEL}rem`,
             overflow: 'hidden auto',
             maxHeight: '264rem',
             zIndex: 100,
@@ -337,10 +353,11 @@ export const ChoiceIndicator: React.FC<{ selected: boolean; square?: boolean }> 
   <span
     aria-hidden
     style={{
-      width: '18rem',
-      height: '18rem',
-      borderRadius: square ? '5rem' : '50%',
-      border: `2rem solid ${selected ? '#ffffff' : '#71717a'}`,
+      width: '22rem',
+      height: '22rem',
+      borderRadius: square ? '6rem' : '50%',
+      border: `1.5rem solid ${selected ? '#ffffff' : 'rgba(255, 255, 255, 0.3)'}`,
+      backgroundColor: selected ? '#ffffff' : 'transparent',
       boxSizing: 'border-box',
       display: 'flex',
       alignItems: 'center',
@@ -349,15 +366,18 @@ export const ChoiceIndicator: React.FC<{ selected: boolean; square?: boolean }> 
     }}
   >
     {selected && (
-      <span
-        style={{
-          width: '8rem',
-          height: '8rem',
-          borderRadius: square ? '2rem' : '50%',
-          backgroundColor: '#ffffff',
-          display: 'block',
-        }}
-      />
+      // A black check on the white disc, like the design's radio rows.
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={BLACK}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ width: '13rem', height: '13rem', display: 'block' }}
+      >
+        <path d="M5 12l5 5L20 7" />
+      </svg>
     )}
   </span>
 );
@@ -440,10 +460,10 @@ export function SegmentedControl<T extends string>({
       aria-label={ariaLabel}
       style={{
         display: 'inline-flex',
-        background: '#0a0a0a',
-        border: FIELD_BORDER,
-        borderRadius: '8rem',
-        padding: '2rem',
+        ...glassStyle,
+        borderRadius: '9999rem',
+        padding: '3rem',
+        gap: '2rem',
       }}
     >
       {options.map((option) => {
@@ -455,13 +475,13 @@ export function SegmentedControl<T extends string>({
             aria-checked={selected}
             onClick={() => onChange(option.value)}
             style={{
-              background: selected ? 'rgba(255, 255, 255, 0.16)' : 'transparent',
+              ...(selected ? segmentedSelectedStyle : { background: 'transparent' }),
               border: 'none',
               color: selected ? '#ffffff' : MUTED,
               fontSize: '11rem',
               fontWeight: 600,
               padding: '4rem 12rem',
-              borderRadius: '6rem',
+              borderRadius: '9999rem',
               cursor: 'pointer',
             }}
           >
@@ -515,10 +535,10 @@ export interface AlertAction {
 }
 
 const alertActionStyle = (secondary: boolean): React.CSSProperties => ({
-  background: 'none',
-  border: secondary ? '1rem solid #3f3f46' : `1rem solid ${WHITE}`,
+  background: secondary ? 'none' : 'rgba(255, 255, 255, 0.10)',
+  border: secondary ? 'none' : GLASS_BORDER,
   color: secondary ? MUTED : WHITE,
-  borderRadius: '7rem',
+  borderRadius: '9999rem',
   fontSize: '11.5rem',
   fontWeight: 600,
   padding: '4rem 11rem',
@@ -545,9 +565,8 @@ export const AlertCard: React.FC<{
       display: 'flex',
       gap: '10rem',
       alignItems: 'flex-start',
-      background: '#000000',
-      border: FIELD_BORDER,
-      borderRadius: '10rem',
+      ...glassClearStyle,
+      borderRadius: `${RADIUS_PANEL}rem`,
       padding: '11rem 13rem',
       fontSize: '12.5rem',
       color: '#ffffff',

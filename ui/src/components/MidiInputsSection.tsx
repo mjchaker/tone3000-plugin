@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { Bluetooth } from './icons';
 import type { AudioDevice } from '../hooks/useAudioDevice';
-import { ChoiceIndicator, FieldRow, FIELD_BORDER, outlinedFieldStyle } from './controls';
-import { MUTED, SUBTLE } from './theme';
+import { ChoiceIndicator, FieldRow, outlinedFieldStyle } from './controls';
+import { MUTED, RADIUS_PANEL, SUBTLE, glassClearStyle } from './theme';
 
 /**
  * MIDI device enablement for the System Settings tab (standalone only;
@@ -36,7 +36,7 @@ export const MidiInputsSection: React.FC<{ device: AudioDevice }> = ({ device })
       help="Enable the devices you want to control the plugin with. Set what each knob or pedal does in Plugin Settings → MIDI Mapping."
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16rem' }}>
-        <div style={{ border: FIELD_BORDER, borderRadius: '10rem', overflow: 'hidden' }}>
+        <div style={{ ...glassClearStyle, borderRadius: `${RADIUS_PANEL}rem`, overflow: 'hidden' }}>
           {inputs.length === 0 ? (
             <p
               style={{

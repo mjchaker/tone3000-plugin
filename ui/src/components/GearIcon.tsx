@@ -1,5 +1,5 @@
 import React from 'react';
-import { GRAY, SURFACE } from './theme';
+import { ARTWORK_BG, GRAY } from './theme';
 import { rem } from '../hooks/useUiScale';
 
 /**
@@ -9,7 +9,7 @@ import { rem } from '../hooks/useUiScale';
  *
  * Used as:
  * - gear chip filters in the tone browser (small, GRAY / WHITE);
- * - fallback artwork when a tone has no image (large, gray on SURFACE;
+ * - fallback artwork when a tone has no image (large, gray on ARTWORK_BG;
  *   the web's ICON_BG_COLOR_MAP is the same #151517).
  */
 
@@ -307,7 +307,7 @@ export const GearIcon: React.FC<{ gear?: string; size?: number; color?: string }
 
 /**
  * Fallback artwork for tones without an image: the gear glyph centered on the
- * web's icon background (#151517 = SURFACE). Defaults to ~40% of the box like
+ * web's icon background (#151517 = ARTWORK_BG). Defaults to ~40% of the box like
  * the web's ToneCard/ToneImage fallbacks; pass `iconSize` for a fixed glyph
  * (gallery tiles use 64). Fills its parent.
  */
@@ -323,7 +323,7 @@ export const GearImageFallback: React.FC<{
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: SURFACE,
+      backgroundColor: ARTWORK_BG,
     }}
   >
     <GearIcon gear={gear} size={iconSize ?? Math.round(boxSize * 0.4)} />
@@ -361,7 +361,7 @@ export const ToneImage: React.FC<{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: SURFACE,
+          backgroundColor: ARTWORK_BG,
         }}
       >
         <FileIcon size={glyphSize} color={GRAY} />

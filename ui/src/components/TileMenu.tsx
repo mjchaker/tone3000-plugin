@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { helpProps } from './helpText';
 import { useDismissable } from '../hooks/useDismissable';
-import { BORDER, DISABLED_OPACITY, HIGHLIGHT, MUTED, WHITE } from './theme';
+import { DISABLED_OPACITY, HIGHLIGHT, MUTED, RADIUS_PANEL, WHITE, glassStyle } from './theme';
 
 /**
  * Right-click action sheet for gallery tiles, in the house floating-panel
@@ -69,9 +69,8 @@ export const TileMenu: React.FC<{
         left: anchor.clientX + CURSOR_OFFSET,
         top: anchor.clientY + CURSOR_OFFSET,
         width: `${MENU_WIDTH}rem`,
-        backgroundColor: '#141416',
-        border: BORDER,
-        borderRadius: '14rem',
+        ...glassStyle,
+        borderRadius: `${RADIUS_PANEL}rem`,
         padding: `${PANEL_PADDING}rem`,
         zIndex: 1000,
         boxSizing: 'border-box',
@@ -97,7 +96,7 @@ export const TileMenu: React.FC<{
             padding: '9rem 12rem',
             background: 'transparent',
             border: 'none',
-            borderRadius: '8rem',
+            borderRadius: '10rem',
             color: item.disabled ? MUTED : WHITE,
             opacity: item.disabled ? DISABLED_OPACITY : 1,
             fontSize: '13rem',

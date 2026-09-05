@@ -6,7 +6,7 @@ import { IconButton } from './IconButton';
 import { PresetBar } from './PresetBar';
 import { StereoModeToggle } from './StereoModeToggle';
 import { HELP } from './helpText';
-import { BORDER } from './theme';
+import { GLASS_CLASS } from './theme';
 import type { usePresets } from '../hooks/usePresets';
 import type { ActivePreset } from '../types/chain';
 import type { User } from '../types/tone';
@@ -75,6 +75,9 @@ export const PluginHeader = React.memo(function PluginHeader({
   onLogout,
 }: PluginHeaderProps) {
   return (
+    // A toolbar, not a bar: the row is transparent and each item is its own
+    // glass capsule floating over the ground (the wordmark, the preset pill,
+    // the mode picker, the tuner, undo/redo as one group, the account menu).
     <div
       style={{
         width: '100%',
@@ -83,22 +86,28 @@ export const PluginHeader = React.memo(function PluginHeader({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: '#000000',
-        padding: '0 24rem',
+        padding: '0 16rem',
         boxSizing: 'border-box',
-        borderBottom: BORDER,
       }}
     >
       <a
         href="https://www.tone3000.com"
         target="_blank"
         rel="noopener noreferrer"
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16rem' }}
+        className={GLASS_CLASS}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '44rem',
+          padding: '0 20rem 0 18rem',
+          borderRadius: '9999rem',
+        }}
       >
-        <img src="/t3k.svg" alt="T3K" style={{ width: '160rem' }} />
+        <img src="/t3k.svg" alt="T3K" style={{ width: '150rem', display: 'block' }} />
       </a>
-      {/* 40px between header items; tight pairs (undo/redo) group inside. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '40rem' }}>
+      {/* 12px between capsules; tight pairs (undo/redo) share one capsule. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12rem' }}>
         <PresetBar
           active={activePreset}
           presets={presetStore.presets}
@@ -116,16 +125,27 @@ export const PluginHeader = React.memo(function PluginHeader({
           help={HELP.tuner}
           active={showTuner}
           fillWhenActive
-          size={28}
+          size={40}
+          glass
         >
           <TuningForkIcon size={18} />
         </IconButton>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16rem' }}>
-          <IconButton onClick={onUndo} disabled={!canUndo} help={HELP.undo} size={28}>
-            <Undo2 size={18} />
+        <div
+          className={GLASS_CLASS}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '2rem',
+            height: '40rem',
+            padding: '0 6rem',
+            borderRadius: '9999rem',
+          }}
+        >
+          <IconButton onClick={onUndo} disabled={!canUndo} help={HELP.undo} size={32}>
+            <Undo2 size={17} />
           </IconButton>
-          <IconButton onClick={onRedo} disabled={!canRedo} help={HELP.redo} size={28}>
-            <Redo2 size={18} />
+          <IconButton onClick={onRedo} disabled={!canRedo} help={HELP.redo} size={32}>
+            <Redo2 size={17} />
           </IconButton>
         </div>
         <AccountMenu

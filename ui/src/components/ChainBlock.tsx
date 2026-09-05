@@ -49,6 +49,7 @@ import { ChromeIconButton, ChromeTextButton, chromeIcon } from './ChromeIconButt
 import { T3K_API } from '../t3k/config';
 import {
   BORDER,
+  GLASS_CLASS,
   GRAY,
   ICON_BOX_SIZE,
   ICON_SIZE,
@@ -605,6 +606,7 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
         </button>
 
         <div
+          className={GLASS_CLASS}
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -613,7 +615,6 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
             height: showInfo ? undefined : `${CARD_HEIGHT}rem`,
             minHeight: `${CARD_HEIGHT}rem`,
             boxSizing: 'border-box',
-            border: BORDER,
             borderRadius: `${CARD_RADIUS}rem`,
             overflow: 'hidden',
           }}
@@ -710,13 +711,7 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
                         PRE
                       </ChromeTextButton>
                     </span>
-                    <div
-                      style={{
-                        ...segmentedGroupStyle(),
-                        // Nested track, slightly quieter than the outer pill.
-                        backgroundColor: 'rgba(118, 118, 128, 0.24)',
-                      }}
-                    >
+                    <div style={segmentedGroupStyle()}>
                       <button
                         onClick={() => setEqView('sliders')}
                         {...helpProps(HELP.eqSlidersView)}

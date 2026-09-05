@@ -201,7 +201,6 @@ export const TunerView: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#000000',
         overflow: 'hidden',
       }}
     >

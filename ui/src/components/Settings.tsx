@@ -14,16 +14,18 @@ import type { AudioDevice } from '../hooks/useAudioDevice';
 import type { ChainItem } from '../types/chain';
 import { isSlimSizeFull, SLIM_SIZE_FULL, SLIM_SIZE_LITE } from '../types/chain';
 import {
+  GLASS_CLASS,
   GRAY,
   LINK_BLUE,
   MUTED,
+  RADIUS_SHEET,
   SUBTLE,
   WHITE,
   segmentedCellStyle,
   segmentedGroupStyle,
+  segmentedSelectedStyle,
 } from './theme';
 import {
-  FIELD_BORDER,
   RadioOption,
   SECTION_GAP,
   SelectField,
@@ -125,7 +127,7 @@ const NAM_A2_SIZE_OPTIONS: { slimSize: number; label: string; description: strin
   { slimSize: SLIM_SIZE_FULL, label: 'A2-Full', description: 'Maximum accuracy model' },
 ];
 
-/** Full-width tab bar (mockup style: optional icon + label, active underline).
+/** Segmented glass capsule (optional icon + label, selected cell raised).
  *  System first: device setup is the main abandon risk. */
 const TabBar: React.FC<{
   active: SettingsTab;
@@ -138,7 +140,7 @@ const TabBar: React.FC<{
   return (
     <div
       role="tablist"
-      style={{ display: 'flex', borderBottom: FIELD_BORDER, marginBottom: '28rem' }}
+      style={{ ...segmentedGroupStyle(), height: '34rem', width: '100%', marginBottom: '24rem' }}
     >
       {tabs.map((tab) => {
         const selected = tab.id === active;
@@ -149,20 +151,13 @@ const TabBar: React.FC<{
             aria-selected={selected}
             onClick={() => onChange(tab.id)}
             style={{
+              ...segmentedCellStyle(),
+              ...(selected ? segmentedSelectedStyle : {}),
               flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               gap: '8rem',
-              padding: '12rem 0',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: `2rem solid ${selected ? '#ffffff' : 'transparent'}`,
-              marginBottom: '-1rem',
-              color: selected ? '#ffffff' : SUBTLE,
-              fontSize: '14rem',
-              fontWeight: 600,
-              cursor: 'pointer',
+              color: selected ? WHITE : MUTED,
+              fontSize: '12.5rem',
+              fontWeight: selected ? 600 : 500,
             }}
           >
             {tab.icon}
@@ -624,32 +619,46 @@ export const Settings: React.FC<SettingsProps> = ({
   );
 
   return (
+    // A scrim over the whole plugin (so nothing behind stays clickable) with
+    // the settings as a glass sheet floating inside the middle band: clear of
+    // the toolbar above and the dock below, inset from the sides.
     <div
-      className="hide-scrollbar"
       style={{
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: '#000000',
+        backgroundColor: 'rgba(0, 0, 0, 0.45)',
         zIndex: 2000,
-        overflow: 'auto',
       }}
     >
       <div
+        className={`hide-scrollbar ${GLASS_CLASS}`}
         style={{
-          maxWidth: '480rem',
-          margin: '0 auto',
-          padding: '28rem 24rem 40rem',
-          color: '#ffffff',
-          boxSizing: 'border-box',
+          position: 'absolute',
+          top: '76rem',
+          left: '24rem',
+          right: '24rem',
+          bottom: '158rem',
+          borderRadius: `${RADIUS_SHEET}rem`,
+          overflow: 'auto',
         }}
       >
-        {header}
-        {/* One tab (hosted) = no tab bar. */}
-        {standalone && <TabBar active={tab} onChange={setTab} />}
-        {tab === 'system' && standalone ? <SystemSettings device={device} /> : pluginTab}
+        <div
+          style={{
+            maxWidth: '480rem',
+            margin: '0 auto',
+            padding: '20rem 24rem 32rem',
+            color: '#ffffff',
+            boxSizing: 'border-box',
+          }}
+        >
+          {header}
+          {/* One tab (hosted) = no tab bar. */}
+          {standalone && <TabBar active={tab} onChange={setTab} />}
+          {tab === 'system' && standalone ? <SystemSettings device={device} /> : pluginTab}
+        </div>
       </div>
     </div>
   );

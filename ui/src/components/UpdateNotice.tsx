@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import DOMPurify from 'dompurify';
 import { X } from './icons';
 import type { UpdateNoticeData } from '../hooks/useUpdateNotice';
-import { BORDER, MUTED, SURFACE, filledPillButtonStyle, iconButtonStyle } from './theme';
+import { MUTED, RADIUS_SHEET, filledPillButtonStyle, glassStyle, iconButtonStyle } from './theme';
 
 interface UpdateNoticeProps {
   notice: UpdateNoticeData | null;
@@ -71,9 +71,8 @@ export const UpdateNotice: React.FC<UpdateNoticeProps> = ({ notice, onRemindLate
           position: 'relative',
           width: '420rem',
           maxWidth: '100%',
-          backgroundColor: SURFACE,
-          border: BORDER,
-          borderRadius: '16rem',
+          ...glassStyle,
+          borderRadius: `${RADIUS_SHEET}rem`,
           padding: '24rem',
           color: '#fff',
           textAlign: 'center',

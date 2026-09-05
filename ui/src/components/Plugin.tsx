@@ -11,6 +11,7 @@ import { useToneSession } from '../hooks/useToneSession';
 import { useToneLoadFlow } from '../hooks/useToneLoadFlow';
 import { useUpdateNotice } from '../hooks/useUpdateNotice';
 import { useUiScale, DESIGN_WIDTH, DESIGN_HEIGHT } from '../hooks/useUiScale';
+import { AMBIENT_BACKGROUND, GLASS_CLASS, RADIUS_SHEET } from './theme';
 import { shouldRestoreToneBrowser } from '../hooks/useT3kSelect';
 import { ChainView, DETAIL_BLOCK_STORAGE_KEY } from './ChainView';
 import { Faceplate, PLATE_HEIGHT } from './Faceplate';
@@ -406,7 +407,10 @@ export const Plugin: React.FC = () => {
         transition: chrome.animating ? `height ${BANNER_ANIM_MS}ms ease` : undefined,
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: '#000000',
+        // The ground every glass surface floats over; nothing else in the
+        // tree paints an opaque background, so the toolbar and dock always
+        // have this glow (and whatever content scrolls under them) to blur.
+        background: AMBIENT_BACKGROUND,
         boxSizing: 'border-box',
         overflow: 'hidden',
         color: '#ffffff',
@@ -414,7 +418,7 @@ export const Plugin: React.FC = () => {
     >
       {/* One app-wide toast pill, floating above the faceplate. Everything
           that raises toasts (preset save, share, auto measure) is inside. */}
-      <ToastProvider bottom={PLATE_HEIGHT + (hintsVisible ? HINT_HEIGHT : 0) + 24}>
+      <ToastProvider bottom={PLATE_HEIGHT + (hintsVisible ? HINT_HEIGHT : 0) + 12 + 24}>
         {chrome.renderedBanner && (
           // Slide slot: the banner is anchored to the slot's bottom edge, so
           // opening/closing the slot slides it down/up from behind the top
@@ -472,7 +476,6 @@ export const Plugin: React.FC = () => {
               flexDirection: 'row',
               flex: 1,
               width: '100%',
-              backgroundColor: '#000000',
               overflow: 'hidden',
               minHeight: 0,
               padding: '0 24rem',
@@ -486,7 +489,6 @@ export const Plugin: React.FC = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
-                backgroundColor: '#000000',
                 // Above the Select Tone header scrim, so stereo columns that
                 // overflow this slot into the center aren't covered by it.
                 position: 'relative',
@@ -551,7 +553,6 @@ export const Plugin: React.FC = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
-                backgroundColor: '#000000',
                 // Above the Select Tone header scrim, so stereo columns that
                 // overflow this slot into the center aren't covered by it.
                 position: 'relative',
@@ -563,18 +564,33 @@ export const Plugin: React.FC = () => {
           </div>
         )}
 
-        {/* Pinned faceplate at the bottom (gains, gate, tone stack), with the
-          hint strip under it (hidden entirely when hints are off). */}
-        <Faceplate
-          balanceActive={balanceActive}
-          stereoOutput={stereoOutput}
-          stereoChains={stereoEnabled}
-          stereoInput={stereoInput}
-          branched={branch != null}
-          inputMode={inputMode}
-          onInputModeChange={actions.setInputMode}
-        />
-        <HintBar />
+        {/* The dock: one floating glass sheet holding the faceplate (gains,
+          gate, tone stack) with the hint strip as its caption row (hidden
+          entirely when hints are off). Inset from the window edges so the
+          ground shows around it; the 12px bottom margin comes out of the
+          flexible middle band, never out of the plate. */}
+        <div
+          className={GLASS_CLASS}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            flexShrink: 0,
+            margin: '0 16rem 12rem',
+            borderRadius: `${RADIUS_SHEET}rem`,
+            overflow: 'hidden',
+          }}
+        >
+          <Faceplate
+            balanceActive={balanceActive}
+            stereoOutput={stereoOutput}
+            stereoChains={stereoEnabled}
+            stereoInput={stereoInput}
+            branched={branch != null}
+            inputMode={inputMode}
+            onInputModeChange={actions.setInputMode}
+          />
+          <HintBar />
+        </div>
 
         {/* Settings takeover, mounted only while open so its parameter
           subscriptions and screen state don't run behind the main UI. */}

@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, FolderClosed } from './icons';
 import { useDismissable } from '../hooks/useDismissable';
 import { LoadingDots } from './LoadingDots';
-import { DISABLED_OPACITY } from './theme';
+import { BORDER, DISABLED_OPACITY, GLASS_CLEAR_CLASS, RADIUS_PANEL, glassStyle } from './theme';
 
 interface Option {
   id: string;
@@ -81,9 +81,9 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
       }}
     >
       <div
+        className={GLASS_CLEAR_CLASS}
         style={{
-          borderRadius: '8rem',
-          background: 'rgba(120, 120, 128, 0.36)',
+          borderRadius: `${RADIUS_PANEL}rem`,
           height: `${height}rem`,
           padding: '0 12rem',
           display: 'flex',
@@ -168,7 +168,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
             width: '1rem',
             alignSelf: 'stretch',
             margin: '8rem 0',
-            backgroundColor: 'rgba(84, 84, 88, 0.65)',
+            backgroundColor: 'rgba(255, 255, 255, 0.14)',
             flexShrink: 0,
           }}
         />
@@ -205,8 +205,8 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
             left: 0,
             right: 0,
             marginBottom: '4rem',
-            borderRadius: '8rem',
-            background: '#39393D',
+            ...glassStyle,
+            borderRadius: `${RADIUS_PANEL}rem`,
             // 6 rows + their 1px dividers; anything longer scrolls.
             maxHeight: `${MAX_VISIBLE_OPTIONS * OPTION_ROW_HEIGHT + (MAX_VISIBLE_OPTIONS - 1)}rem`,
             overflowY: 'auto',
@@ -228,8 +228,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
                 background: option.id === value ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                borderBottom:
-                  index < options.length - 1 ? '1rem solid rgba(84, 84, 88, 0.65)' : 'none',
+                borderBottom: index < options.length - 1 ? BORDER : 'none',
               }}
               onMouseEnter={(e) => {
                 if (option.id !== value) {

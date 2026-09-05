@@ -209,7 +209,8 @@ export const HELP = {
   copyBlock: 'Copy: copy this block (tone, model and all settings).',
   pasteBlock: 'Paste: add a copy of the copied block in this slot.',
   loadFileTile: 'Load File: pick a local .nam or IR .wav file to load here. No account needed.',
-  loadFolderTile: 'Load Folder: pick a folder of .nam or .wav files; loads as one multi-model block.',
+  loadFolderTile:
+    'Load Folder: pick a folder of .nam or .wav files; loads as one multi-model block.',
   blockPower: 'Power: bypass this block.',
   retryLoad: 'Retry: re-download this model.',
   swapTone: 'Swap: replace this tone, keeping its slot.',

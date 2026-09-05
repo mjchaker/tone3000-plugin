@@ -2,9 +2,10 @@ import React from 'react';
 import { helpProps } from './helpText';
 import {
   BLACK,
-  BORDER,
   BRAND_YELLOW,
   DISABLED_OPACITY,
+  GLASS_BORDER,
+  GLASS_CLASS,
   GRAY,
   HIGHLIGHT,
   ICON_BOX_SIZE,
@@ -17,9 +18,11 @@ import {
 
 /**
  * Shared chrome icon button for the faceplate, card headers, tiles, and
- * pan rail. Box is always ICON_BOX_SIZE × ICON_BOX_RADIUS; glyphs are
- * forced to ICON_SIZE and grid-centered in the box (no nested flex/span
- * that WebKit can baseline-shift).
+ * pan rail: a round glass button. Box is always ICON_BOX_SIZE ×
+ * ICON_BOX_RADIUS; glyphs are forced to ICON_SIZE and grid-centered in the
+ * box (no nested flex/span that WebKit can baseline-shift). The glass class
+ * paints the resting material; state fills (HIGHLIGHT, BRAND_YELLOW, WHITE)
+ * are inline background-colors layered under the class's gradient.
  */
 export type ChromeTone = 'plain' | 'power' | 'armed' | 'link';
 
@@ -52,7 +55,8 @@ interface ChromeIconButtonProps {
   style?: React.CSSProperties;
 }
 
-/** Always 1px so the content box never changes between tones. */
+/** Always 1px so the content box never changes between tones. The border
+    matches the glass class at rest so only the state fills differ. */
 const toneChrome = (
   tone: ChromeTone,
   on: boolean,
@@ -63,25 +67,25 @@ const toneChrome = (
       return {
         color: on ? WHITE : GRAY,
         backgroundColor: on ? 'transparent' : HIGHLIGHT,
-        border: '1rem solid transparent',
+        border: GLASS_BORDER,
       };
     case 'armed':
       return {
         color: on ? BLACK : GRAY,
         backgroundColor: on ? BRAND_YELLOW : 'transparent',
-        border: on ? `1rem solid ${BRAND_YELLOW}` : BORDER,
+        border: on ? `1rem solid ${BRAND_YELLOW}` : GLASS_BORDER,
       };
     case 'link':
       return {
         color: on ? WHITE : GRAY,
         backgroundColor: 'transparent',
-        border: '1rem solid transparent',
+        border: GLASS_BORDER,
       };
     default:
       return {
         color: WHITE,
         backgroundColor: filled ? HIGHLIGHT : 'transparent',
-        border: '1rem solid transparent',
+        border: GLASS_BORDER,
       };
   }
 };
@@ -132,6 +136,7 @@ export const ChromeIconButton: React.FC<ChromeIconButtonProps> = ({
     onClick={onClick}
     onMouseDown={onMouseDown}
     disabled={disabled}
+    className={GLASS_CLASS}
     {...helpProps(help)}
     style={{
       ...iconButtonStyle(ICON_BOX_SIZE),
@@ -157,11 +162,11 @@ export const ChromeIconButton: React.FC<ChromeIconButtonProps> = ({
 );
 
 /**
- * Text chrome button (EQ, PRE). TEXT_BOX_HEIGHT / ICON_BOX_RADIUS.
+ * Text chrome capsule (EQ, PRE). TEXT_BOX_HEIGHT / ICON_BOX_RADIUS.
  * Priority: open (panel showing) > armed (feature shaping) > idle.
  * - open: WHITE fill + BLACK label.
  * - armed: BRAND_YELLOW fill + BLACK label.
- * - idle: BORDER + MUTED.
+ * - idle: glass + MUTED label.
  */
 interface ChromeTextButtonProps {
   onClick: () => void;
@@ -193,7 +198,7 @@ const textChrome = (
   return {
     color: MUTED,
     backgroundColor: 'transparent',
-    border: BORDER,
+    border: GLASS_BORDER,
   };
 };
 

@@ -5,7 +5,7 @@ import type { User } from '../types/tone';
 import { AvatarImage } from './AvatarFallback';
 import { useDismissable } from '../hooks/useDismissable';
 import { HELP, helpProps } from './helpText';
-import { BORDER, SURFACE_RAISED } from './theme';
+import { GLASS_CLASS, RADIUS_PANEL } from './theme';
 
 /**
  * Account pill for the main header, a port of the web navbar's hamburger menu
@@ -31,7 +31,7 @@ const itemStyle: React.CSSProperties = {
   padding: '10rem 12rem',
   background: 'transparent',
   border: 'none',
-  borderRadius: '8rem',
+  borderRadius: '10rem',
   color: '#ffffff',
   fontSize: '14rem',
   // Menu rows are body text: reset the global 600 default.
@@ -66,44 +66,47 @@ export const AccountMenu: React.FC<AccountMenuProps> = ({
       <style>{`.account-menu-item:hover { background-color: rgba(255, 255, 255, 0.08); }`}</style>
       <button
         onClick={() => setOpen((o) => !o)}
+        className={GLASS_CLASS}
         {...helpProps(HELP.account)}
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: '10rem',
           height: '40rem',
-          padding: '0 5rem 0 12rem',
+          padding: '0 6rem 0 14rem',
           boxSizing: 'border-box',
-          backgroundColor: 'transparent',
-          border: BORDER,
           borderRadius: '9999rem',
+          color: '#ffffff',
           cursor: 'pointer',
         }}
       >
         <HamburgerIcon />
         <div
           style={{
-            width: '24rem',
-            height: '24rem',
+            width: '28rem',
+            height: '28rem',
             borderRadius: '50%',
             overflow: 'hidden',
             flexShrink: 0,
+            // A faint glass disc behind the avatar so the signed-out
+            // placeholder glyph reads as a button, not a hole in the capsule.
+            background:
+              'linear-gradient(135deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.10))',
           }}
         >
-          <AvatarImage src={user?.avatar_url} alt={user?.username ?? ''} size={24} />
+          <AvatarImage src={user?.avatar_url} alt={user?.username ?? ''} size={28} />
         </div>
       </button>
 
       {open && (
         <div
+          className={GLASS_CLASS}
           style={{
             position: 'absolute',
             top: 'calc(100% + 8rem)',
             right: 0,
             minWidth: '190rem',
-            backgroundColor: SURFACE_RAISED,
-            border: BORDER,
-            borderRadius: '12rem',
+            borderRadius: `${RADIUS_PANEL}rem`,
             padding: '8rem',
             display: 'flex',
             flexDirection: 'column',
