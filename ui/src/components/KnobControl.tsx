@@ -5,7 +5,7 @@ import type { KnobThumb, KnobVariant } from './KnobInner';
 import type { KnobScale } from './knobScale';
 import { percentScale } from './knobScale';
 import { helpProps, pinHelp, unpinHelp } from './helpText';
-import { GRAY, KNOB_LABEL_GAP, SURFACE_RAISED, WHITE } from './theme';
+import { KNOB_LABEL_GAP, KNOB_LABEL_SIZE, SURFACE_RAISED, WHITE } from './theme';
 import { getUiScale, rem } from '../hooks/useUiScale';
 
 /**
@@ -58,9 +58,11 @@ interface KnobControlProps {
   onDragStateChange?: (dragging: boolean) => void;
 }
 
-/** Every knob label is 14px; faceplate chrome lift and secondary-knob
-    centerlines are built around that slot height. */
-const LABEL_SIZE = 14;
+/** Every knob label shares one size (theme.ts KNOB_LABEL_SIZE); faceplate
+    chrome lift and secondary-knob centerlines are built around that slot. */
+const LABEL_SIZE = KNOB_LABEL_SIZE;
+/** Idle label: near-white so labels read on glass; the readout is pure white. */
+const LABEL_COLOR = 'rgba(255, 255, 255, 0.86)';
 
 const BASE_SENSITIVITY = 0.006;
 const FINE_FACTOR = 8;
@@ -360,9 +362,9 @@ export const KnobControl: React.FC<KnobControlProps> = ({
         fontSize: rem(LABEL_SIZE),
         fontWeight: 400,
         textAlign: 'center',
-        // Idle labels are muted by default; pan-rail labels pass
-        // labelBright to read as section titles. Readout is always white.
-        color: showReadout || labelBright ? WHITE : GRAY,
+        // Idle labels are near-white; pan-rail labels pass labelBright to
+        // read as section titles. Readout is always pure white.
+        color: showReadout || labelBright ? WHITE : LABEL_COLOR,
         letterSpacing: 'normal',
         whiteSpace: 'nowrap',
         fontVariantNumeric: 'tabular-nums',

@@ -14,7 +14,6 @@ import { arrayMove } from '@dnd-kit/helpers';
 import { ChainBlock } from './ChainBlock';
 import {
   BranchElbow,
-  EdgeFade,
   GalleryLane,
   LANE_GAP,
   STEREO_TILE_SIZE,
@@ -51,6 +50,10 @@ import { isInsertSlot } from '../types/chain';
  * Cleared from Plugin on preset load so a remount lands on the gallery.
  */
 export const DETAIL_BLOCK_STORAGE_KEY = 't3k.detailBlockId';
+
+/** Horizontal fade at both ends of the lane scrollport (see the scroll
+    container below). Transparent at the very edge, opaque past the gutter. */
+const EDGE_FADE_MASK = `linear-gradient(to right, rgba(0, 0, 0, 0), #000 ${EDGE_FADE_WIDTH}rem, #000 calc(100% - ${EDGE_FADE_WIDTH}rem), rgba(0, 0, 0, 0))`;
 
 interface ChainViewProps {
   /** Left lane (the only lane in mono mode). */
@@ -478,6 +481,11 @@ export const ChainView: React.FC<ChainViewProps> = ({
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
+              // Tiles fade out under the EDGE_FADE_WIDTH gutters. A mask on
+              // the scrollport (not a painted overlay) so the fade is to
+              // whatever ground shows through, never to a fixed color.
+              WebkitMaskImage: EDGE_FADE_MASK,
+              maskImage: EDGE_FADE_MASK,
             }}
           >
             <div
@@ -509,8 +517,6 @@ export const ChainView: React.FC<ChainViewProps> = ({
               )}
             </div>
           </div>
-          <EdgeFade side="left" />
-          <EdgeFade side="right" />
         </div>
       </DragDropProvider>
     </div>

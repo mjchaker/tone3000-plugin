@@ -6,7 +6,7 @@ import {
   Copy,
   File,
   FolderClosed,
-  PlusCircle,
+  Plus,
   Power,
   Trash2,
   Upload,
@@ -24,7 +24,8 @@ import { TileMenu } from './TileMenu';
 import type { TileMenuAnchor, TileMenuItem } from './TileMenu';
 import type { ChainActions } from '../hooks/useChainActions';
 import { useToast } from './Toast';
-import { GRAY, ICON_SIZE, SURFACE, SURFACE_RAISED } from './theme';
+import { formatLabel, gearLabel } from '../t3k/labels';
+import { ARTWORK_BG, FONT_MONO, GLASS_CLASS, GRAY, ICON_SIZE, MUTED, WHITE } from './theme';
 
 /**
  * Gallery view of a chain block: a square tone image with quick actions
@@ -43,9 +44,17 @@ const DRAG_GHOST_OPACITY = 0.75;
 
 /** File-drag drop-target chrome (tone tiles + add tile). */
 const FILE_DROP_BORDER = '2rem dashed rgba(0, 209, 59, 0.50)';
-const ADD_TILE_BORDER_WIDTH = 2;
-const ADD_TILE_BORDER = `${ADD_TILE_BORDER_WIDTH}rem dashed rgba(141, 141, 147, 0.65)`;
+const ADD_TILE_BORDER_WIDTH = 1.5;
+const ADD_TILE_BORDER = `${ADD_TILE_BORDER_WIDTH}rem dashed rgba(255, 255, 255, 0.16)`;
 const FILE_DROP_ICON_SIZE = 36;
+
+/** Tile corner radius scales with the tile (24 on a 208 mono tile, 18 on a
+    152 stereo tile) so both lanes read as the same object at two sizes. */
+export const tileRadius = (size: number) => Math.round(size * 0.115);
+/** Inset of the label chip / action buttons from the tile edge. */
+const tileInset = (size: number) => Math.round(size * 0.05);
+/** Soft drop shadow and hairline rim shared by tone tiles. */
+const TILE_SHADOW = '0 14rem 36rem rgba(0, 0, 0, 0.6), inset 0 0 0 1rem rgba(255, 255, 255, 0.10)';
 
 const isFileDrag = (e: React.DragEvent) => e.dataTransfer.types.includes('Files');
 
@@ -188,8 +197,9 @@ const TileSurface: React.FC<{
         style={{
           width: `${size}rem`,
           height: `${size}rem`,
-          borderRadius: '16rem',
-          backgroundColor: SURFACE,
+          borderRadius: `${tileRadius(size)}rem`,
+          backgroundColor: ARTWORK_BG,
+          boxShadow: TILE_SHADOW,
           position: 'relative',
           overflow: 'hidden',
           cursor: 'pointer',
@@ -258,25 +268,9 @@ const TileSurface: React.FC<{
           </div>
         )}
 
-        {/* Translucent strip under the quick actions so they read on any art.
-            Fades in with the header (opacity only, never a layout change). */}
-        {!dropArmed && (
-          <div
-            className="tile-chrome"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '32rem',
-              background: 'rgba(0, 0, 0, 0.35)',
-              pointerEvents: 'none',
-            }}
-          />
-        )}
-
-        {/* Top quick-action bar (hover-revealed): power on the left, swap and
-            trash clustered on the right. */}
+        {/* Top quick-action row (hover-revealed): power on the left, swap and
+            trash clustered on the right. Each is a round glass button, so no
+            strip is needed behind them; they read on any art. */}
         {!dropArmed && (
           <div
             className="tile-chrome"
@@ -289,7 +283,7 @@ const TileSurface: React.FC<{
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '4rem',
+              padding: `${tileInset(size)}rem`,
             }}
           >
             <ChromeIconButton
@@ -301,7 +295,7 @@ const TileSurface: React.FC<{
             >
               <Power size={ICON_SIZE} />
             </ChromeIconButton>
-            <div style={{ display: 'flex', gap: '16rem' }}>
+            <div style={{ display: 'flex', gap: '8rem' }}>
               <ChromeIconButton
                 help={HELP.swapTone}
                 onClick={actions.onSwap}
@@ -320,16 +314,78 @@ const TileSurface: React.FC<{
           </div>
         )}
 
-        {/* Clip latch lives outside the overflow:hidden face so it stacks
-            above the inset glow; red dot only while clipped. */}
+        {/* Label chip: title, format badge and gear type on glass, with the
+            block's output LED at the right. Sits inside the face so the
+            artwork clips around it. */}
+        {!dropArmed && (
+          <div
+            className={GLASS_CLASS}
+            style={{
+              position: 'absolute',
+              left: `${tileInset(size)}rem`,
+              right: `${tileInset(size)}rem`,
+              bottom: `${tileInset(size)}rem`,
+              borderRadius: `${Math.round(tileRadius(size) * 0.62)}rem`,
+              padding: size < 180 ? '7rem 9rem' : '9rem 12rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8rem',
+              pointerEvents: 'none',
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem', minWidth: 0 }}>
+              <span
+                style={{
+                  fontSize: size < 180 ? '12rem' : '13rem',
+                  fontWeight: 600,
+                  color: WHITE,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {tone.title}
+              </span>
+              <span
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6rem',
+                  fontSize: '11rem',
+                  fontWeight: 400,
+                  color: MUTED,
+                  minWidth: 0,
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: FONT_MONO,
+                    fontSize: '10rem',
+                    lineHeight: 1,
+                    padding: '4rem 7rem',
+                    borderRadius: '9999rem',
+                    letterSpacing: '0.04em',
+                    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    flexShrink: 0,
+                  }}
+                >
+                  {tone.local && !tone.format ? 'FILE' : formatLabel(tone.format)}
+                </span>
+                <span
+                  style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                >
+                  {gearLabel(tone.gear)}
+                </span>
+              </span>
+            </div>
+            <BlockLed meterId={outMeterId} size={8} />
+          </div>
+        )}
       </div>
 
-      {!dropArmed && <BlockEnergyBorder meterId={outMeterId} borderRadius={16} />}
-      {!dropArmed && (
-        <div style={{ position: 'absolute', bottom: '8rem', right: '8rem', zIndex: 4 }}>
-          <BlockLed meterId={outMeterId} size={10} />
-        </div>
-      )}
+      {!dropArmed && <BlockEnergyBorder meterId={outMeterId} borderRadius={tileRadius(size)} />}
     </div>
   );
 };
@@ -448,27 +504,44 @@ export const GalleryBlock: React.FC<GalleryBlockProps> = React.memo(
 );
 GalleryBlock.displayName = 'GalleryBlock';
 
-/** Plus glyph: 48 on mono tiles (224), 40 on stereo (160). Half of that is
-    the radius the routing lines run edge-to-circle against. */
-export const plusIconSize = (tileSize: number) => (tileSize <= 160 ? 40 : 48);
+/** Plus disc diameter: a quarter of the tile (50 on a 208 mono tile, 36 on a
+    152 stereo tile). Half of that is the radius the routing lines run
+    edge-to-disc against. */
+export const plusIconSize = (tileSize: number) => Math.round(tileSize * 0.24);
 
-/** Lucide's circle-plus draws its circle at r=10 inside the 24-unit viewBox,
-    so the visible ring sits 2/24 of the rendered size in from the icon's
-    bounding box (measured to the stroke's centerline). Connector lines must
-    overshoot the box by this much to actually meet the ring; stopping half a
-    stroke short (at the box edge) reads as a hairline gap. */
-export const plusCircleInset = (iconSize: number) => (iconSize * 2) / 24;
+/** The disc's visible edge is its box edge (a filled glass circle, not a
+    stroked ring), so connector lines need no overshoot to meet it. */
+export const PLUS_DISC_INSET = 0;
+
+/** The glass plus disc drawn on insert slots and on the ghost rail behind a
+    vacated slot. */
+export const PlusDisc: React.FC<{ size: number }> = ({ size }) => (
+  <div
+    className={GLASS_CLASS}
+    style={{
+      width: `${size}rem`,
+      height: `${size}rem`,
+      borderRadius: '50%',
+      display: 'grid',
+      placeItems: 'center',
+      color: 'rgba(255, 255, 255, 0.92)',
+      flexShrink: 0,
+    }}
+  >
+    <Plus size={Math.round(size * 0.44)} strokeWidth={1.8} />
+  </div>
+);
 
 /** Which tile edges get a routing line into the plus circle (signal-flow
     continuation of the lane's connector lines). */
 export type AddTileRouting = 'left' | 'right' | 'both' | 'none';
 
-/** Face of the insert slot tile. */
+/** Face of the insert slot tile: a dashed outline on the bare ground. */
 const addTileFaceStyle = (size: number): React.CSSProperties => ({
   width: `${size}rem`,
   height: `${size}rem`,
-  borderRadius: '16rem',
-  backgroundColor: SURFACE_RAISED,
+  borderRadius: `${tileRadius(size)}rem`,
+  backgroundColor: 'transparent',
   border: ADD_TILE_BORDER,
   position: 'relative',
   display: 'flex',
@@ -533,9 +606,9 @@ export const AddTile: React.FC<AddTileProps> = ({
         position: 'absolute',
         top: '50%',
         [edge]: 0,
-        width: `${size / 2 - plusIconSize(size) / 2 + plusCircleInset(plusIconSize(size)) - ADD_TILE_BORDER_WIDTH}rem`,
-        height: '2rem',
-        backgroundColor: '#ffffff',
+        width: `${size / 2 - plusIconSize(size) / 2 + PLUS_DISC_INSET - ADD_TILE_BORDER_WIDTH}rem`,
+        height: '1rem',
+        backgroundColor: 'rgba(255, 255, 255, 0.22)',
         transform: 'translateY(-50%)',
       }}
     />
@@ -575,7 +648,7 @@ export const AddTile: React.FC<AddTileProps> = ({
       {dropArmed ? (
         <Upload size={FILE_DROP_ICON_SIZE} color={GRAY} />
       ) : (
-        <PlusCircle size={plusIconSize(size)} strokeWidth={1} />
+        <PlusDisc size={plusIconSize(size)} />
       )}
       {menuAnchor && (
         <TileMenu

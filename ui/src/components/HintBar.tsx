@@ -2,7 +2,7 @@ import React from 'react';
 import { X } from './icons';
 import { HELP, helpProps, setHintsEnabled, useHelpText, useHintsEnabled } from './helpText';
 import { useCpuPercent } from '../hooks/useMeters';
-import { BORDER, MUTED, WHITE } from './theme';
+import { BORDER, FONT_MONO, MUTED, WHITE } from './theme';
 
 /** Chrome height added below the plugin when hints are enabled (see Plugin). */
 export const HINT_HEIGHT = 36;
@@ -23,8 +23,9 @@ const CpuReadout: React.FC = () => {
         // count changes never shift the row; the pair stays centered with a
         // normal gap instead of a right-aligned value slot.
         minWidth: '72rem',
-        fontSize: '12rem',
+        fontSize: '11rem',
         fontWeight: 400,
+        fontFamily: FONT_MONO,
         color: MUTED,
         fontVariantNumeric: 'tabular-nums',
         flexShrink: 0,
@@ -38,12 +39,13 @@ const CpuReadout: React.FC = () => {
 };
 
 /**
- * Dedicated hint strip under the faceplate: black (so it reads as chrome, not
- * part of the plate) and always present while hints are enabled, so showing a
- * hint never shifts layout. Like the banner, it grows the window rather than
- * eating into the plugin: Plugin adds HINT_HEIGHT to the window height.
- * The right side carries the CPU readout; the × hides the bar entirely, and
- * the Settings "Info Bar" toggle brings it back.
+ * Hint strip: the dock's caption row under the faceplate, a darker band
+ * inside the same glass sheet (Plugin wraps both). Always present while
+ * hints are enabled, so showing a hint never shifts layout. Like the banner,
+ * it grows the window rather than eating into the plugin: Plugin adds
+ * HINT_HEIGHT to the window height. The right side carries the CPU readout;
+ * the × hides the bar entirely, and the Settings "Info Bar" toggle brings it
+ * back.
  */
 export const HintBar: React.FC = () => {
   const enabled = useHintsEnabled();
@@ -60,8 +62,10 @@ export const HintBar: React.FC = () => {
         gap: '16rem',
         flexShrink: 0,
         borderTop: BORDER,
-        background: '#000000',
-        padding: '0 24rem',
+        // Tinted darker than the plate so the caption reads as a footer of
+        // the dock without a second border.
+        background: 'rgba(0, 0, 0, 0.18)',
+        padding: '0 22rem',
         boxSizing: 'border-box',
       }}
     >
@@ -69,7 +73,7 @@ export const HintBar: React.FC = () => {
         style={{
           flex: 1,
           minWidth: 0,
-          fontSize: '13rem',
+          fontSize: '12rem',
           // Hint sentences are body text: reset the global 600 default.
           fontWeight: 400,
           lineHeight: 1.35,

@@ -12,7 +12,8 @@ import { useDismissable } from '../hooks/useDismissable';
 import { HELP, helpProps } from './helpText';
 import { ChromeIconButton } from './ChromeIconButton';
 import {
-  BORDER,
+  GLASS_BORDER,
+  GLASS_CLASS,
   HIGHLIGHT,
   ICON_BOX_SIZE,
   ICON_BOX_RADIUS,
@@ -21,9 +22,11 @@ import {
   FONT_MONO,
   KNOB_SIZE_SECONDARY,
   MUTED,
+  RADIUS_PANEL,
   SUBTLE,
   WHITE,
   faceplateChromeLift,
+  glassStyle,
   uiOffClass,
 } from './theme';
 
@@ -137,6 +140,7 @@ const InputModeButton: React.FC<{
       <style>{`.input-mode-item:hover { background-color: ${HIGHLIGHT}; }`}</style>
       <button
         type="button"
+        className={GLASS_CLASS}
         onClick={() => setOpen((prev) => !prev)}
         {...helpProps(HELP.inputMode)}
         style={{
@@ -146,8 +150,10 @@ const InputModeButton: React.FC<{
           height: `${ICON_BOX_SIZE}rem`,
           padding: '0 2rem',
           boxSizing: 'border-box',
-          background: mode !== 'stereo' ? HIGHLIGHT : 'transparent',
-          border: '1rem solid transparent',
+          // Non-default routings keep the engaged fill so they read at a
+          // glance; the glass class paints the resting capsule.
+          backgroundColor: mode !== 'stereo' ? HIGHLIGHT : 'transparent',
+          border: GLASS_BORDER,
           borderRadius: `${ICON_BOX_RADIUS}rem`,
           color: WHITE,
           cursor: 'pointer',
@@ -167,9 +173,8 @@ const InputModeButton: React.FC<{
             bottom: 'calc(100% + 14rem)',
             left: 0,
             minWidth: '172rem',
-            backgroundColor: '#141416',
-            border: BORDER,
-            borderRadius: '14rem',
+            ...glassStyle,
+            borderRadius: `${RADIUS_PANEL}rem`,
             padding: '12rem 8rem 8rem',
             zIndex: 200,
             boxSizing: 'border-box',
@@ -204,7 +209,7 @@ const InputModeButton: React.FC<{
                 padding: '9rem 12rem',
                 background: 'transparent',
                 border: 'none',
-                borderRadius: '8rem',
+                borderRadius: '10rem',
                 color: option.mode === mode ? WHITE : MUTED,
                 fontSize: '13rem',
                 fontWeight: 400,
@@ -376,9 +381,9 @@ export const Faceplate = React.memo(function Faceplate({
         justifyContent: 'space-between',
         alignItems: 'flex-end',
         flexShrink: 0,
-        borderTop: BORDER,
-        background: '#1C1C1E',
-        padding: '16rem 30rem', // align input/output with UV meters
+        // The dock (Plugin) paints the glass; the plate itself is clear so
+        // the knobs sit directly on the material.
+        padding: '14rem 26rem 10rem', // align input/output with UV meters
         boxSizing: 'border-box',
       }}
     >

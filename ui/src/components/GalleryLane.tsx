@@ -1,6 +1,6 @@
 import React from 'react';
-import { ArrowUpDown, Link, PlusCircle } from './icons';
-import { GalleryBlock, AddTile, plusIconSize, plusCircleInset } from './GalleryBlock';
+import { ArrowUpDown, Link } from './icons';
+import { GalleryBlock, AddTile, PlusDisc, plusIconSize, PLUS_DISC_INSET } from './GalleryBlock';
 import type { AddTileRouting } from './GalleryBlock';
 import { KnobControl } from './KnobControl';
 import { panScale } from './knobScale';
@@ -13,6 +13,7 @@ import {
   BLACK,
   BORDER,
   BRAND_YELLOW,
+  GLASS_CLASS,
   ICON_BOX_SIZE,
   ICON_SIZE,
   FONT_MONO,
@@ -190,22 +191,21 @@ const GhostRail: React.FC<{ slots: number; tileSize: number }> = ({ slots, tileS
         }}
       >
         {i > 0 && (
-          // Runs from the previous slot's plus ring to this slot's, extended
-          // past each icon's bounding box by plusCircleInset so the line
-          // actually meets the drawn circle (see GalleryBlock).
+          // Runs from the previous slot's plus disc to this slot's; the disc's
+          // edge is its box edge, so no overshoot is needed (see GalleryBlock).
           <div
             style={{
               position: 'absolute',
-              left: `${-(TILE_GAP + tileSize / 2 - plusIconSize(tileSize) / 2 + plusCircleInset(plusIconSize(tileSize)))}rem`,
+              left: `${-(TILE_GAP + tileSize / 2 - plusIconSize(tileSize) / 2 + PLUS_DISC_INSET)}rem`,
               top: '50%',
-              width: `${TILE_GAP + tileSize - plusIconSize(tileSize) + 2 * plusCircleInset(plusIconSize(tileSize))}rem`,
-              height: '2rem',
-              backgroundColor: '#ffffff',
+              width: `${TILE_GAP + tileSize - plusIconSize(tileSize) + 2 * PLUS_DISC_INSET}rem`,
+              height: '1rem',
+              backgroundColor: 'rgba(255, 255, 255, 0.22)',
               transform: 'translateY(-50%)',
             }}
           />
         )}
-        <PlusCircle size={plusIconSize(tileSize)} strokeWidth={1} />
+        <PlusDisc size={plusIconSize(tileSize)} />
       </span>
     ))}
   </div>
@@ -419,9 +419,6 @@ export const StereoPanRail: React.FC<{ monoSum: boolean }> = ({ monoSum }) => {
         alignSelf: 'center',
         height: `${STEREO_TILE_SIZE * 2 + LANE_GAP}rem`,
         flexShrink: 0,
-        // Room for the left edge-fade's 1rem outer overhang (see EdgeFade)
-        // so it doesn't sit on the link/swap pill.
-        paddingRight: '1rem',
       }}
     >
       <div style={knobRegion}>
@@ -462,13 +459,13 @@ export const StereoPanRail: React.FC<{ monoSum: boolean }> = ({ monoSum }) => {
           boxes so both faces share one oval. */}
       <div
         {...(monoSum ? helpProps(HELP.monoSum) : {})}
+        className={GLASS_CLASS}
         style={{
           display: 'flex',
           alignItems: 'center',
           gap: '4rem',
-          border: BORDER,
           borderRadius: '9999rem',
-          padding: '3rem 5rem',
+          padding: '4rem',
         }}
       >
         {monoSum ? (
@@ -584,25 +581,3 @@ export const BranchElbow: React.FC<{ x: number; tileSize: number; trunkOnTop: bo
     </>
   );
 };
-
-/** Fade the lanes out under the gutters as they scroll, so content slides
-    behind a smooth ramp to the background instead of hard-clipping. */
-export const EdgeFade: React.FC<{ side: 'left' | 'right' }> = ({ side }) => (
-  <div
-    style={{
-      position: 'absolute',
-      top: 0,
-      bottom: 0,
-      // Overhang the outer edge by a design px: at fractional UI scales the
-      // scrollport's clip edge and this overlay can round to different
-      // device pixels, which would leave a subpixel strip of content visible
-      // just past the fade. The overhang end is solid black over the black
-      // background, so it never shows.
-      [side]: '-1rem',
-      width: `${EDGE_FADE_WIDTH + 1}rem`,
-      background: `linear-gradient(to ${side === 'left' ? 'right' : 'left'}, #000000, rgba(0, 0, 0, 0))`,
-      pointerEvents: 'none',
-      zIndex: 3,
-    }}
-  />
-);

@@ -33,6 +33,9 @@ import {
   SEGMENTED_TRACK,
   SUBTLE,
   TEXT_BOX_HEIGHT,
+  GLASS_BORDER,
+  GLASS_CLEAR_CLASS,
+  RADIUS_PANEL,
   segmentedCellStyle,
   segmentedGroupStyle,
   uiOffClass,
@@ -406,9 +409,9 @@ export const BlockEqView: React.FC<BlockEqViewProps> = ({
     alignItems: 'center',
     gap: '6rem',
     height: `${TEXT_BOX_HEIGHT}rem`,
-    padding: '0 4rem',
+    padding: '0 10rem',
     borderRadius: rem(ICON_BOX_RADIUS),
-    border: 'none',
+    border: GLASS_BORDER,
     backgroundColor: SEGMENTED_TRACK,
     boxSizing: 'border-box',
     whiteSpace: 'nowrap',
@@ -417,11 +420,16 @@ export const BlockEqView: React.FC<BlockEqViewProps> = ({
   return (
     <div
       ref={containerRef}
+      className={GLASS_CLEAR_CLASS}
       style={{
         flex: 1,
         minHeight: 0,
         position: 'relative',
-        backgroundColor: '#000000',
+        borderRadius: `${RADIUS_PANEL}rem`,
+        overflow: 'hidden',
+        // The card's glass shows through; a dark tint keeps the curve and
+        // spectrum legible without painting an opaque well.
+        backgroundColor: 'rgba(0, 0, 0, 0.28)',
       }}
     >
       {/* Spectrum/grid bleed edge-to-edge; floating chrome + sliders inset. */}

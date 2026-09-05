@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useMeter, useMeterClip, meterId } from '../hooks/useMeters';
-import { METER_MAX_DB, METER_MIN_DB, getGradientColor } from './meterColor';
+import { METER_MAX_DB, METER_MIN_DB } from './meterColor';
 import { HELP, helpProps } from './helpText';
-import { FONT_MONO, GRAY } from './theme';
+import { BRAND_RED, BRAND_YELLOW, FONT_MONO, GLASS_CLEAR_CLASS, SUBTLE } from './theme';
 
 interface DbMeterProps {
   type: 'input' | 'output';
@@ -12,64 +12,89 @@ interface DbMeterProps {
   labelsPosition?: 'left' | 'right';
 }
 
-const DOT_SIZE = 6;
-const DOT_GAP = 10;
+const BAR_WIDTH = 10;
 /** Gap between the L and R columns in stereo. */
 const COLUMN_GAP = 5;
-/** Gap between the label rail and the dot column(s). */
+/** Gap between the label rail and the bar column(s). */
 const LABEL_GAP = 10;
-/** Tighter gap when labels sit to the right of the dots (output meter): the
-    right-aligned digits are ragged on the side facing the dots, so the visual
+/** Tighter gap when labels sit to the right of the bars (output meter): the
+    right-aligned digits are ragged on the side facing the bars, so the visual
     gap already reads larger there. */
 const LABEL_GAP_RIGHT = 6;
 const LABEL_WIDTH = 18;
-const LABEL_COLOR = GRAY;
+/** Clip LED diameter and its clearance above the bar. */
+const CLIP_SIZE = 8;
+const CLIP_GAP = 12;
+
+const dbToUnit = (db: number): number =>
+  Math.min(1, Math.max(0, (db - METER_MIN_DB) / (METER_MAX_DB - METER_MIN_DB)));
 
 /**
- * Main input/output meter: vertical dot column(s) in the block-meter style.
- * The full color scale is always visible (dimmed) and lights to the level.
- * The scale tops out at 0 dBFS; the topmost dot is a clip LED that lights only
- * when the level hits 0 dB, latches red, and clears on click.
+ * Main input/output meter: a glass track per channel with a level fill that
+ * rises from the bottom, white through most of its travel and brand yellow
+ * at the top of the scale, plus a clip LED above the track that lights only
+ * when the level hits 0 dBFS, latches red, and clears on click.
  * Each column subscribes to its own meter id, so a channel only re-renders
  * for its own (quantized) changes.
  */
-const DotColumn: React.FC<{ id: string; numDots: number }> = ({ id, numDots }) => {
+const BarColumn: React.FC<{ id: string; height: number }> = ({ id, height }) => {
   const db = useMeter(id);
   const [clipped, clearClip] = useMeterClip(id);
+  const unit = dbToUnit(db);
 
   return (
     <div
       style={{
-        display: 'flex',
-        flexDirection: 'column-reverse',
-        gap: `${DOT_GAP}rem`,
+        position: 'relative',
+        width: `${BAR_WIDTH}rem`,
+        height: `${height}rem`,
         flexShrink: 0,
       }}
     >
-      {Array.from({ length: numDots }, (_, index) => {
-        // Dot i sits at an exact dB threshold on the label scale; the top dot
-        // is exactly 0 dBFS and doubles as the latching clip LED.
-        const position = numDots > 1 ? index / (numDots - 1) : 0;
-        const dotDb = METER_MIN_DB + position * (METER_MAX_DB - METER_MIN_DB);
-        const isClipDot = index === numDots - 1;
-        const isActive = isClipDot ? clipped : db >= dotDb;
-        return (
-          <div
-            key={index}
-            onClick={isClipDot && clipped ? clearClip : undefined}
-            {...(isClipDot && clipped ? helpProps(HELP.clipDot) : {})}
-            style={{
-              width: `${DOT_SIZE}rem`,
-              height: `${DOT_SIZE}rem`,
-              borderRadius: '50%',
-              backgroundColor: getGradientColor(position),
-              opacity: isActive ? 1 : 0.22,
-              cursor: isClipDot && clipped ? 'pointer' : undefined,
-              flexShrink: 0,
-            }}
-          />
-        );
-      })}
+      <div
+        onClick={clipped ? clearClip : undefined}
+        {...(clipped ? helpProps(HELP.clipDot) : {})}
+        style={{
+          position: 'absolute',
+          left: `${(BAR_WIDTH - CLIP_SIZE) / 2}rem`,
+          top: `${-(CLIP_SIZE + CLIP_GAP)}rem`,
+          width: `${CLIP_SIZE}rem`,
+          height: `${CLIP_SIZE}rem`,
+          borderRadius: '50%',
+          backgroundColor: clipped ? BRAND_RED : 'rgba(255, 255, 255, 0.12)',
+          boxShadow: clipped ? `0 0 10rem ${BRAND_RED}` : 'none',
+          cursor: clipped ? 'pointer' : undefined,
+        }}
+      />
+      <div
+        className={GLASS_CLEAR_CLASS}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: `${BAR_WIDTH}rem`,
+          height: `${height}rem`,
+          borderRadius: '9999rem',
+          overflow: 'hidden',
+        }}
+      >
+        {/* The fill is a fixed full-height gradient clipped by its own
+            height, so the yellow always lives at the top of the scale rather
+            than riding along with the level. */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: `${Math.round(unit * 100)}%`,
+            backgroundImage: `linear-gradient(180deg, ${BRAND_YELLOW} 0%, rgba(255, 255, 255, 0.95) 14%, rgba(255, 255, 255, 0.55) 100%)`,
+            backgroundSize: `100% ${height}rem`,
+            backgroundPosition: 'bottom',
+            boxShadow: unit > 0.86 ? '0 0 12rem rgba(255, 255, 0, 0.25)' : 'none',
+          }}
+        />
+      </div>
     </div>
   );
 };
@@ -80,26 +105,20 @@ export const DbMeter: React.FC<DbMeterProps> = ({
   height = 200,
   labelsPosition = 'left',
 }) => {
-  const numDots = useMemo(() => Math.floor(height / (DOT_SIZE + DOT_GAP)), [height]);
-  const actualMeterHeight = numDots * DOT_SIZE + (numDots - 1) * DOT_GAP;
+  // Label centers align with their level on the bar: MIN at the bottom edge,
+  // MAX (0 dB) at the top edge.
+  const dbToPixelPosition = (db: number): number => dbToUnit(db) * height;
 
-  // Label centers align with dot centers: MIN at the bottom dot, MAX (0 dB)
-  // at the top (clip) dot.
-  const dbToPixelPosition = (db: number): number => {
-    const normalized = (db - METER_MIN_DB) / (METER_MAX_DB - METER_MIN_DB);
-    return DOT_SIZE / 2 + normalized * (actualMeterHeight - DOT_SIZE);
-  };
-
-  const scaleMarks = [-60, -48, -36, -24, -18, -12, -9, -6, -3, 0];
+  const scaleMarks = [-60, -48, -36, -24, -12, -6, 0];
 
   const labels = (
     <div
       style={{
         position: 'relative',
-        height: `${actualMeterHeight}rem`,
+        height: `${height}rem`,
         fontSize: '8rem',
-        fontWeight: '500',
-        color: LABEL_COLOR,
+        fontWeight: 500,
+        color: SUBTLE,
         flexShrink: 0,
         width: `${LABEL_WIDTH}rem`,
       }}
@@ -127,7 +146,7 @@ export const DbMeter: React.FC<DbMeterProps> = ({
   // One column subscribed to the combined level, or L/R columns per channel.
   const columns = stereo ? [meterId.main(type, 'l'), meterId.main(type, 'r')] : [type];
 
-  const dots = (
+  const bars = (
     <div
       style={{
         display: 'flex',
@@ -138,7 +157,7 @@ export const DbMeter: React.FC<DbMeterProps> = ({
       }}
     >
       {columns.map((id) => (
-        <DotColumn key={id} id={id} numDots={numDots} />
+        <BarColumn key={id} id={id} height={height} />
       ))}
     </div>
   );
@@ -147,17 +166,17 @@ export const DbMeter: React.FC<DbMeterProps> = ({
 
   return (
     // Fixed mono-footprint slot: the meter always occupies its mono width, and
-    // the labels+dots row is centered inside it. In stereo the row widens by
-    // one column and overflows the slot symmetrically, which lands the dot
+    // the labels+bars row is centered inside it. In stereo the row widens by
+    // one column and overflows the slot symmetrically, which lands the bar
     // pair's center exactly where the mono column's center was (over the gain
     // knob) while the labels shift outward by half the growth — keeping the
-    // label-to-dots gap constant in every state.
+    // label-to-bars gap constant in every state.
     <div
       style={{
-        width: `${LABEL_WIDTH + labelGap + DOT_SIZE}rem`,
+        width: `${LABEL_WIDTH + labelGap + BAR_WIDTH}rem`,
         // A tighter-than-default gap shrinks the slot; give the savings back
         // as margin on the label side so the meter's overall footprint (and
-        // thus the dots' position over the knob) is gap-independent.
+        // thus the bars' position over the knob) is gap-independent.
         [labelsPosition === 'left' ? 'marginLeft' : 'marginRight']: `${LABEL_GAP - labelGap}rem`,
         display: 'flex',
         flexDirection: 'row',
@@ -176,7 +195,7 @@ export const DbMeter: React.FC<DbMeterProps> = ({
         }}
       >
         {labelsPosition === 'left' && labels}
-        {dots}
+        {bars}
         {labelsPosition === 'right' && labels}
       </div>
     </div>

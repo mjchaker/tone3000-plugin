@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import type { AudioDeviceState } from '../types/audioDevice';
 import { AlertIcon, type AlertVariant } from './controls';
-import { BORDER, MUTED } from './theme';
+import { BORDER, GLASS_BORDER, MUTED } from './theme';
 
 /**
  * Main-window banner: at most ONE banner, chosen by evaluating rules in
@@ -265,10 +265,10 @@ export function useAppBanner(state: AudioDeviceState | null): {
 
 /** Primary = outlined pill; ignore = borderless muted text button. */
 const actionButtonStyle = (secondary: boolean): React.CSSProperties => ({
-  background: 'none',
-  border: secondary ? 'none' : '1rem solid #ffffff',
+  background: secondary ? 'none' : 'rgba(255, 255, 255, 0.10)',
+  border: secondary ? 'none' : GLASS_BORDER,
   color: secondary ? MUTED : '#ffffff',
-  borderRadius: '7rem',
+  borderRadius: '9999rem',
   fontSize: '11.5rem',
   fontWeight: 600,
   padding: secondary ? '4rem 4rem' : '4rem 11rem',
@@ -293,7 +293,9 @@ export const AppBanner: React.FC<{
       gap: '10rem',
       padding: '0 24rem',
       borderBottom: BORDER,
-      backgroundColor: '#000000',
+      // A tinted glass strip rather than a black bar, so it reads as part of
+      // the chrome above the toolbar instead of a hole in the ground.
+      backgroundColor: 'rgba(255, 255, 255, 0.06)',
       color: '#ffffff',
       fontSize: '12.5rem',
       lineHeight: 1.4,

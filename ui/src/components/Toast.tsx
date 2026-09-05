@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { BLACK, WHITE } from './theme';
+import { BLACK } from './theme';
 
 /**
  * One app-wide toast: a white pill centered above the faceplate, for quick
@@ -66,13 +66,15 @@ export const ToastProvider: React.FC<{
             left: '50%',
             bottom: `${bottom}rem`,
             transform: 'translateX(-50%)',
-            backgroundColor: WHITE,
+            background:
+              'linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(232, 232, 238, 0.94))',
             color: BLACK,
-            fontSize: '16rem',
-            fontWeight: 700,
+            fontSize: '15rem',
+            fontWeight: 600,
             lineHeight: 1,
             padding: '14rem 24rem',
-            borderRadius: '16rem',
+            borderRadius: '9999rem',
+            boxShadow: 'inset 0 1rem 0 rgba(255, 255, 255, 1), 0 10rem 28rem rgba(0, 0, 0, 0.45)',
             whiteSpace: 'nowrap',
             zIndex: 1000,
             pointerEvents: 'none',

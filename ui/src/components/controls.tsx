@@ -1,7 +1,21 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { ChevronDown } from './icons';
 import { useDismissable } from '../hooks/useDismissable';
-import { MUTED, SUBTLE, BRAND_RED, BRAND_YELLOW, WHITE } from './theme';
+import {
+  BLACK,
+  BRAND_RED,
+  BRAND_YELLOW,
+  GLASS_BORDER,
+  MUTED,
+  RADIUS_CHIP,
+  RADIUS_PANEL,
+  SUBTLE,
+  SURFACE,
+  WHITE,
+  glassClearStyle,
+  glassStyle,
+  segmentedSelectedStyle,
+} from './theme';
 
 /**
  * Shared form primitives for settings-style surfaces (Settings takeover,
@@ -10,15 +24,17 @@ import { MUTED, SUBTLE, BRAND_RED, BRAND_YELLOW, WHITE } from './theme';
  * borders, green pill switches, white radio/check indicators.
  */
 
-export const FIELD_BORDER = '1rem solid #3f3f46';
+/** Hairline inside glass panels (row seams); the same value as theme BORDER. */
+export const FIELD_BORDER = '1rem solid rgba(255, 255, 255, 0.10)';
 
 /** Vertical gap between top-level settings sections. */
-export const SECTION_GAP = 48;
+/** Gap between stacked settings panels. */
+export const SECTION_GAP = 14;
 
 export const outlinedFieldStyle: React.CSSProperties = {
-  backgroundColor: 'transparent',
-  border: FIELD_BORDER,
-  borderRadius: '6rem',
+  backgroundColor: SURFACE,
+  border: GLASS_BORDER,
+  borderRadius: `${RADIUS_CHIP}rem`,
   color: '#ffffff',
   fontSize: '14rem',
   fontWeight: 400,
@@ -29,15 +45,55 @@ export const outlinedFieldStyle: React.CSSProperties = {
 // Only headers carry weight; everything else is regular (the app's global
 // stylesheet defaults heavier, so body copy sets 400 explicitly).
 export const sectionLabelStyle: React.CSSProperties = {
-  fontSize: '15rem',
+  fontSize: '13rem',
   fontWeight: 600,
   color: '#ffffff',
+  lineHeight: 1.3,
 };
 
+/** Eyebrow above a settings panel (INTERFACE, NAM A2 SIZE, ...). */
+export const eyebrowStyle: React.CSSProperties = {
+  display: 'block',
+  padding: '0 14rem',
+  marginBottom: '6rem',
+  fontSize: '10.5rem',
+  fontWeight: 600,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  color: MUTED,
+};
+
+/** Padding of one row inside a settings panel. */
+export const ROW_PADDING = '12rem 14rem';
+
 /**
- * Bordered settings card with an icon + uppercase title (e.g. AUDIO INTERFACE).
- * Children are stacked with a tighter internal gap; the card itself owns the
- * outer SECTION_GAP below.
+ * Eyebrow title over a clear-glass panel whose direct children are rows,
+ * separated by hairlines (index.css .settings-panel). The plugin tab's
+ * sections and MIDI list use this; SettingsGroup is the same panel with an
+ * icon in its eyebrow.
+ */
+export const SettingsPanel: React.FC<{
+  title?: string;
+  children: React.ReactNode;
+  role?: string;
+  ariaLabel?: string;
+  style?: React.CSSProperties;
+}> = ({ title, children, role, ariaLabel, style }) => (
+  <section role={role} aria-label={ariaLabel} style={style}>
+    {title && <span style={eyebrowStyle}>{title}</span>}
+    <div
+      className="settings-panel"
+      style={{ ...glassClearStyle, borderRadius: `${RADIUS_PANEL}rem`, overflow: 'hidden' }}
+    >
+      {children}
+    </div>
+  </section>
+);
+
+/**
+ * Settings panel with an icon + uppercase eyebrow (e.g. AUDIO INTERFACE).
+ * Children are rows separated by hairlines; the panel owns the outer
+ * SECTION_GAP below.
  */
 export const SettingsGroup: React.FC<{
   title: string;
@@ -45,60 +101,39 @@ export const SettingsGroup: React.FC<{
   children: React.ReactNode;
   style?: React.CSSProperties;
 }> = ({ title, icon, children, style }) => (
-  <section
-    style={{
-      border: FIELD_BORDER,
-      borderRadius: '10rem',
-      padding: '20rem',
-      marginBottom: `${SECTION_GAP}rem`,
-      boxSizing: 'border-box',
-      ...style,
-    }}
-  >
+  <section style={{ marginBottom: `${SECTION_GAP}rem`, ...style }}>
+    <span style={{ ...eyebrowStyle, display: 'flex', alignItems: 'center', gap: '8rem' }}>
+      <span style={{ display: 'flex', color: MUTED, flexShrink: 0 }}>{icon}</span>
+      {title}
+    </span>
     <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10rem',
-        marginBottom: '16rem',
-      }}
+      className="settings-panel"
+      style={{ ...glassClearStyle, borderRadius: `${RADIUS_PANEL}rem`, overflow: 'hidden' }}
     >
-      <span style={{ display: 'flex', color: '#ffffff', flexShrink: 0 }}>{icon}</span>
-      <span
-        style={{
-          fontSize: '16rem',
-          fontWeight: 600,
-          letterSpacing: 'normal',
-          color: '#ffffff',
-          textTransform: 'uppercase',
-        }}
-      >
-        {title}
-      </span>
+      {children}
     </div>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16rem' }}>{children}</div>
   </section>
 );
 
 export const descriptionStyle: React.CSSProperties = {
-  fontSize: '14rem',
+  fontSize: '11.5rem',
   fontWeight: 400,
   color: MUTED,
-  // 8rem from a plain section header to the first help line. ToggleRow
-  // overrides to 4rem: the pill already adds visual weight under the label.
-  margin: '8rem 0 0',
-  lineHeight: 1.45,
+  // 3rem from a row title to its help line.
+  margin: '3rem 0 0',
+  lineHeight: 1.35,
 };
 
 export const ctaButtonStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '12rem 16rem',
-  borderRadius: '10rem',
-  border: '1rem solid #ffffff',
-  backgroundColor: 'transparent',
-  color: '#ffffff',
-  fontSize: '15rem',
-  fontWeight: 400,
+  alignSelf: 'flex-start',
+  padding: '8rem 16rem',
+  fontSize: '12.5rem',
+  borderRadius: '9999rem',
+  border: '1rem solid rgba(255, 255, 255, 0.9)',
+  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(232, 232, 238, 0.94))',
+  boxShadow: 'inset 0 1rem 0 rgba(255, 255, 255, 1), 0 10rem 28rem rgba(0, 0, 0, 0.45)',
+  color: BLACK,
+  fontWeight: 600,
   cursor: 'pointer',
   textAlign: 'center',
 };
@@ -112,8 +147,8 @@ export const captionStyle: React.CSSProperties = {
   lineHeight: 1.45,
 };
 
-/** Green pill switch mirroring the web ToggleSimple: 40×24 track (zinc-500
-    off, #00D13B on), 16px white knob with a 4px inset, 300ms ease. */
+/** Switch in the glass vocabulary: a 42×26 capsule track, white when on
+    (near-black knob) and faint glass when off (white knob), 300ms ease. */
 export const PillToggle: React.FC<{ value: boolean; onChange: (value: boolean) => void }> = ({
   value,
   onChange,
@@ -124,28 +159,29 @@ export const PillToggle: React.FC<{ value: boolean; onChange: (value: boolean) =
     onClick={() => onChange(!value)}
     style={{
       position: 'relative',
-      width: '40rem',
-      height: '24rem',
-      borderRadius: '12rem',
-      border: 'none',
+      width: '42rem',
+      height: '26rem',
+      borderRadius: '13rem',
+      border: `1rem solid rgba(255, 255, 255, ${value ? 0.9 : 0.14})`,
       padding: 0,
       cursor: 'pointer',
-      backgroundColor: value ? '#00D13B' : '#71717a',
-      boxShadow: 'inset 0 2rem 4rem rgba(0, 0, 0, 0.15)',
+      backgroundColor: value ? 'rgba(255, 255, 255, 0.92)' : 'rgba(255, 255, 255, 0.10)',
+      boxShadow: 'inset 0 1rem 2rem rgba(0, 0, 0, 0.25)',
+      boxSizing: 'border-box',
       flexShrink: 0,
-      transition: 'background-color 0.3s ease-in-out',
+      transition: 'background-color 0.3s ease-in-out, border-color 0.3s ease-in-out',
     }}
   >
     <span
       style={{
         position: 'absolute',
-        top: '4rem',
-        left: '4rem',
-        width: '16rem',
-        height: '16rem',
+        top: '1rem',
+        left: '1rem',
+        width: '22rem',
+        height: '22rem',
         borderRadius: '50%',
-        backgroundColor: '#ffffff',
-        boxShadow: '0 1rem 2rem rgba(0, 0, 0, 0.3)',
+        backgroundColor: value ? '#0a0a0c' : 'rgba(255, 255, 255, 0.85)',
+        boxShadow: '0 1rem 3rem rgba(0, 0, 0, 0.45)',
         transform: value ? 'translateX(16rem)' : 'translateX(0)',
         transition: 'transform 0.3s ease-in-out',
         display: 'block',
@@ -193,13 +229,16 @@ export function SelectField<T extends string>({
         disabled={disabled}
         aria-label={ariaLabel}
         style={{
-          ...outlinedFieldStyle,
+          ...glassStyle,
+          borderRadius: '9999rem',
           width: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '10rem',
-          padding: '12rem 16rem',
+          padding: '7rem 14rem',
+          fontSize: '12.5rem',
+          fontWeight: 500,
           cursor: disabled ? 'not-allowed' : 'pointer',
           color: disabled || !selected ? MUTED : '#ffffff',
         }}
@@ -226,9 +265,8 @@ export function SelectField<T extends string>({
             top: 'calc(100% + 4rem)',
             left: 0,
             right: 0,
-            borderRadius: '6rem',
-            background: '#000000',
-            border: FIELD_BORDER,
+            ...glassStyle,
+            borderRadius: `${RADIUS_PANEL}rem`,
             overflow: 'hidden auto',
             maxHeight: '264rem',
             zIndex: 100,
@@ -281,28 +319,29 @@ export function SelectField<T extends string>({
   );
 }
 
-/** Label + help + control: the repeating field shape of the settings tabs.
- *  Pass `flush` inside a SettingsGroup (the group owns vertical rhythm). */
+/** Label + help + control: the repeating row shape of the settings tabs.
+ *  Pass `flush` inside a panel (the panel separates rows with hairlines and
+ *  owns the outer gap); standalone rows keep a SECTION_GAP below. */
 export const FieldRow: React.FC<{
   label: string;
   help?: React.ReactNode;
   labelExtra?: React.ReactNode;
   children: React.ReactNode;
-  /** Drop the outer bottom margin (SettingsGroup stacks with gap instead). */
+  /** Drop the outer bottom margin (the panel stacks rows instead). */
   flush?: boolean;
 }> = ({ label, help, labelExtra, children, flush = false }) => (
-  <div style={{ marginBottom: flush ? 0 : `${SECTION_GAP}rem` }}>
+  <div style={{ padding: ROW_PADDING, marginBottom: flush ? 0 : `${SECTION_GAP}rem` }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <span style={sectionLabelStyle}>{label}</span>
       {labelExtra}
     </div>
-    {help && <p style={{ ...descriptionStyle, marginBottom: '16rem' }}>{help}</p>}
-    {!help && <div style={{ height: '16rem' }} />}
-    {children}
+    {help && <p style={descriptionStyle}>{help}</p>}
+    <div style={{ marginTop: '10rem' }}>{children}</div>
   </div>
 );
 
-/** Section label with a pill toggle on the right, description underneath. */
+/** Row: title + description on the left, switch on the right; expanded
+    controls / tips render under the description. */
 export const ToggleRow: React.FC<{
   label: string;
   description: React.ReactNode;
@@ -311,7 +350,7 @@ export const ToggleRow: React.FC<{
   children?: React.ReactNode;
   flush?: boolean;
 }> = ({ label, description, value, onChange, children, flush = false }) => (
-  <div style={{ marginBottom: flush ? 0 : `${SECTION_GAP}rem` }}>
+  <div style={{ padding: ROW_PADDING, marginBottom: flush ? 0 : `${SECTION_GAP}rem` }}>
     <div
       style={{
         display: 'flex',
@@ -320,12 +359,14 @@ export const ToggleRow: React.FC<{
         gap: '16rem',
       }}
     >
-      <span style={sectionLabelStyle}>{label}</span>
+      <div style={{ minWidth: 0 }}>
+        <span style={sectionLabelStyle}>{label}</span>
+        <p style={descriptionStyle}>{description}</p>
+      </div>
       <PillToggle value={value} onChange={onChange} />
     </div>
-    <p style={{ ...descriptionStyle, margin: '4rem 0 0' }}>{description}</p>
-    {/* 16rem between the help line and any expanded controls / tips. */}
-    {children ? <div style={{ marginTop: '16rem' }}>{children}</div> : null}
+    {/* 12rem between the row and any expanded controls / tips. */}
+    {children ? <div style={{ marginTop: '12rem' }}>{children}</div> : null}
   </div>
 );
 
@@ -337,10 +378,11 @@ export const ChoiceIndicator: React.FC<{ selected: boolean; square?: boolean }> 
   <span
     aria-hidden
     style={{
-      width: '18rem',
-      height: '18rem',
-      borderRadius: square ? '5rem' : '50%',
-      border: `2rem solid ${selected ? '#ffffff' : '#71717a'}`,
+      width: '22rem',
+      height: '22rem',
+      borderRadius: square ? '6rem' : '50%',
+      border: `1.5rem solid ${selected ? '#ffffff' : 'rgba(255, 255, 255, 0.3)'}`,
+      backgroundColor: selected ? '#ffffff' : 'transparent',
       boxSizing: 'border-box',
       display: 'flex',
       alignItems: 'center',
@@ -349,20 +391,24 @@ export const ChoiceIndicator: React.FC<{ selected: boolean; square?: boolean }> 
     }}
   >
     {selected && (
-      <span
-        style={{
-          width: '8rem',
-          height: '8rem',
-          borderRadius: square ? '2rem' : '50%',
-          backgroundColor: '#ffffff',
-          display: 'block',
-        }}
-      />
+      // A black check on the white disc, like the design's radio rows.
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke={BLACK}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ width: '13rem', height: '13rem', display: 'block' }}
+      >
+        <path d="M5 12l5 5L20 7" />
+      </svg>
     )}
   </span>
 );
 
-/** Radio row with label + description (NAM A2 Size options etc). */
+/** Radio row: label + description on the left, the indicator on the right
+    (NAM A2 Size options etc). */
 export const RadioOption: React.FC<{
   selected: boolean;
   label: string;
@@ -378,10 +424,11 @@ export const RadioOption: React.FC<{
       onClick={onSelect}
       style={{
         display: 'flex',
-        alignItems: 'flex-start',
-        gap: '12rem',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '16rem',
         width: '100%',
-        padding: 0,
+        padding: ROW_PADDING,
         border: 'none',
         background: 'transparent',
         cursor: 'pointer',
@@ -389,33 +436,12 @@ export const RadioOption: React.FC<{
         color: 'inherit',
       }}
     >
-      <span style={{ marginTop: '1rem', display: 'flex' }}>
-        <ChoiceIndicator selected={selected} />
-      </span>
       <span style={{ minWidth: 0, flex: 1 }}>
-        <span
-          style={{
-            display: 'block',
-            fontSize: '14rem',
-            fontWeight: 400,
-            color: '#ffffff',
-            lineHeight: 1.3,
-          }}
-        >
-          {label}
-        </span>
-        <span
-          style={{
-            display: 'block',
-            fontSize: '14rem',
-            fontWeight: 400,
-            color: MUTED,
-            marginTop: '4rem',
-            lineHeight: 1.45,
-          }}
-        >
-          {description}
-        </span>
+        <span style={{ ...sectionLabelStyle, display: 'block' }}>{label}</span>
+        <span style={{ ...descriptionStyle, display: 'block' }}>{description}</span>
+      </span>
+      <span style={{ display: 'flex', flexShrink: 0 }}>
+        <ChoiceIndicator selected={selected} />
       </span>
     </button>
     {children}
@@ -440,10 +466,10 @@ export function SegmentedControl<T extends string>({
       aria-label={ariaLabel}
       style={{
         display: 'inline-flex',
-        background: '#0a0a0a',
-        border: FIELD_BORDER,
-        borderRadius: '8rem',
-        padding: '2rem',
+        ...glassStyle,
+        borderRadius: '9999rem',
+        padding: '3rem',
+        gap: '2rem',
       }}
     >
       {options.map((option) => {
@@ -455,13 +481,13 @@ export function SegmentedControl<T extends string>({
             aria-checked={selected}
             onClick={() => onChange(option.value)}
             style={{
-              background: selected ? 'rgba(255, 255, 255, 0.16)' : 'transparent',
+              ...(selected ? segmentedSelectedStyle : { background: 'transparent' }),
               border: 'none',
               color: selected ? '#ffffff' : MUTED,
               fontSize: '11rem',
               fontWeight: 600,
               padding: '4rem 12rem',
-              borderRadius: '6rem',
+              borderRadius: '9999rem',
               cursor: 'pointer',
             }}
           >
@@ -515,10 +541,10 @@ export interface AlertAction {
 }
 
 const alertActionStyle = (secondary: boolean): React.CSSProperties => ({
-  background: 'none',
-  border: secondary ? '1rem solid #3f3f46' : `1rem solid ${WHITE}`,
+  background: secondary ? 'none' : 'rgba(255, 255, 255, 0.10)',
+  border: secondary ? 'none' : GLASS_BORDER,
   color: secondary ? MUTED : WHITE,
-  borderRadius: '7rem',
+  borderRadius: '9999rem',
   fontSize: '11.5rem',
   fontWeight: 600,
   padding: '4rem 11rem',
@@ -545,9 +571,8 @@ export const AlertCard: React.FC<{
       display: 'flex',
       gap: '10rem',
       alignItems: 'flex-start',
-      background: '#000000',
-      border: FIELD_BORDER,
-      borderRadius: '10rem',
+      ...glassClearStyle,
+      borderRadius: `${RADIUS_PANEL}rem`,
       padding: '11rem 13rem',
       fontSize: '12.5rem',
       color: '#ffffff',

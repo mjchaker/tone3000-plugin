@@ -36,8 +36,8 @@ const A2Mark: React.FC<{ size?: number }> = ({ size = 18 }) => {
   );
 };
 
-/** Format tag (NAM / IR / …) matching the web ToneCard badge:
-    zinc-400 background, black mono text, 2px corners. `a2` appends the A2
+/** Format tag (NAM / IR / …): a small mono capsule on translucent white,
+    the same badge the chain tiles' label chips use. `a2` appends the A2
     architecture mark (NAM tones the plugin can actually load). */
 export const FormatBadge: React.FC<{ label: string; a2?: boolean }> = ({ label, a2 = false }) => (
   <span
@@ -51,14 +51,15 @@ export const FormatBadge: React.FC<{ label: string; a2?: boolean }> = ({ label, 
     <span
       style={{
         fontFamily: FONT_MONO,
-        fontSize: '12rem',
+        fontSize: '11rem',
         fontWeight: 400,
-        color: '#000000',
-        backgroundColor: '#a1a1aa',
-        padding: '1rem 6rem',
-        borderRadius: '2rem',
+        lineHeight: 1,
+        color: 'rgba(255, 255, 255, 0.9)',
+        backgroundColor: 'rgba(255, 255, 255, 0.14)',
+        padding: '4rem 7rem',
+        borderRadius: '9999rem',
         whiteSpace: 'nowrap',
-        letterSpacing: 'normal',
+        letterSpacing: '0.04em',
       }}
     >
       {label}

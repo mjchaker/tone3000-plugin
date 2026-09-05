@@ -3,9 +3,20 @@ import { RotateCcw, X } from './icons';
 import { useMidiMap } from '../hooks/useMidiMap';
 import type { MidiMapping } from '../types/midiMap';
 import type { ChainItem, ToneBlock } from '../types/chain';
-import { FieldRow, FIELD_BORDER, SECTION_GAP, SelectField, captionStyle } from './controls';
+import { FieldRow, SECTION_GAP, SelectField, captionStyle } from './controls';
 import { MAPPABLE_TARGETS, behaviorLabel, sourceLabel, targetById } from './midiCatalog';
-import { BORDER, FONT_MONO, MUTED, SUBTLE, BRAND_YELLOW } from './theme';
+import {
+  BORDER,
+  FONT_MONO,
+  GLASS_BORDER,
+  MUTED,
+  RADIUS_CHIP,
+  RADIUS_PANEL,
+  SUBTLE,
+  SURFACE,
+  BRAND_YELLOW,
+  glassClearStyle,
+} from './theme';
 
 /**
  * MIDI Mapping (inline in Plugin Settings): control the plugin from pedals
@@ -149,9 +160,9 @@ const ccInputStyle: React.CSSProperties = {
   width: '54rem',
   boxSizing: 'border-box',
   flexShrink: 0,
-  background: '#1C1C1E',
-  border: FIELD_BORDER,
-  borderRadius: '6rem',
+  background: SURFACE,
+  border: GLASS_BORDER,
+  borderRadius: `${RADIUS_CHIP}rem`,
   color: '#ffffff',
   fontSize: '12rem',
   fontWeight: 400,
@@ -172,7 +183,7 @@ const LearningRow: React.FC<{
   onCcCommit: () => void;
   onCancel: () => void;
 }> = ({ targetId, context, first, ccDraft, onCcDraftChange, onCcCommit, onCancel }) => (
-  <div style={{ ...rowStyle(first), background: '#000' }}>
+  <div style={{ ...rowStyle(first), background: 'rgba(255, 255, 255, 0.04)' }}>
     <TargetCell targetId={targetId} context={context} />
     <span
       style={{
@@ -320,7 +331,7 @@ export const MidiMapSettings: React.FC<{
       <style>{`@keyframes t3kMidiListen { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }`}</style>
 
       <div style={{ marginBottom: `${SECTION_GAP}rem` }}>
-        <div style={{ border: FIELD_BORDER, borderRadius: '10rem', overflow: 'hidden' }}>
+        <div style={{ ...glassClearStyle, borderRadius: `${RADIUS_PANEL}rem`, overflow: 'hidden' }}>
           {state.mappings.map((mapping, index) =>
             mapping.targetId === learnTargetId ? (
               <LearningRow

@@ -9,7 +9,6 @@ import { useCorrelation } from '../hooks/useMeters';
 import { HELP, helpProps } from './helpText';
 import { ChromeIconButton } from './ChromeIconButton';
 import {
-  BORDER,
   BRAND_RED,
   BRAND_YELLOW,
   GRAY,
@@ -17,7 +16,9 @@ import {
   ICON_SIZE,
   KNOB_SIZE_SECONDARY,
   KNOB_LABEL_GAP,
+  RADIUS_PANEL,
   SUBTLE,
+  glassStyle,
   uiOffClass,
 } from './theme';
 
@@ -202,9 +203,8 @@ export const ImageDeckPanel = React.forwardRef<
         // floating a full gap above the group.
         bottom: 'calc(100% + 6rem)',
         ...(fromKnob ? { left: 0 } : { right: 0 }),
-        backgroundColor: '#141416',
-        border: BORDER,
-        borderRadius: '14rem',
+        ...glassStyle,
+        borderRadius: `${RADIUS_PANEL}rem`,
         padding: '14rem 16rem 8rem',
         zIndex: 200,
         boxSizing: 'border-box',

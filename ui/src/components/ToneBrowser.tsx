@@ -17,22 +17,26 @@ import { FormatBadge } from './FormatBadge';
 import { GearIcon, ToneImage } from './GearIcon';
 import { BusyOverlay, LoadingDots } from './LoadingDots';
 import { HELP, helpProps } from './helpText';
-import { EdgeFade, EDGE_FADE_WIDTH } from './GalleryLane';
+import { EDGE_FADE_WIDTH } from './GalleryLane';
 import { useHorizontalWheelScroll } from '../hooks/useHorizontalWheelScroll';
 import { CARD_WIDTH } from './chainLayout';
 import { T3kMark } from './T3kMark';
 import {
-  BORDER,
+  ARTWORK_BG,
+  BLACK,
   BRAND_RED,
   DISABLED_OPACITY,
-  FONT_MONO,
-  GRAY,
+  GLASS_BORDER,
+  GLASS_CLASS,
+  GLASS_CLEAR_CLASS,
   MUTED,
-  SURFACE,
-  SURFACE_RAISED,
+  RADIUS_SHEET,
   WHITE,
   filledPillButtonStyle,
-  pillButtonStyle,
+  glassStyle,
+  segmentedCellStyle,
+  segmentedGroupStyle,
+  segmentedSelectedStyle,
 } from './theme';
 
 /**
@@ -90,15 +94,14 @@ const STREAM_STORAGE_KEY = 't3k_browser_stream';
 const COLUMN_MAX_WIDTH = CARD_WIDTH;
 const CARD_IMAGE_SIZE = 112;
 
-/** Stream header as tabs: evenly distributed across the full column width
-    (each tab flex:1 with its label centered), white text + a full-tab-width
-    underline when active, muted otherwise. Bold on every label (Figma Arial
-    Bold) so switching tabs doesn't reflow the segment. */
+/** Stream picker: a full-width segmented glass capsule (Trending / Recently
+    used / Favorites / Created). The selected stream is the raised lozenge;
+    every cell is flex:1 so switching never reflows the row. */
 const StreamTabs: React.FC<{ active: StreamKind; onChange: (s: StreamKind) => void }> = ({
   active,
   onChange,
 }) => (
-  <div role="tablist" style={{ display: 'flex', borderBottom: BORDER }}>
+  <div role="tablist" style={{ ...segmentedGroupStyle(), height: '34rem', width: '100%' }}>
     {TABS.map((tab) => {
       const selected = tab.id === active;
       const Icon = tab.icon;
@@ -110,24 +113,17 @@ const StreamTabs: React.FC<{ active: StreamKind; onChange: (s: StreamKind) => vo
           aria-selected={selected}
           onClick={() => onChange(tab.id)}
           style={{
+            ...segmentedCellStyle(),
+            ...(selected ? segmentedSelectedStyle : {}),
             flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8rem',
-            background: 'transparent',
-            border: 'none',
-            padding: '0 0 12rem',
-            marginBottom: '-1rem',
-            borderBottom: `2rem solid ${selected ? WHITE : 'transparent'}`,
+            gap: '6rem',
             color: selected ? WHITE : MUTED,
-            fontSize: '14rem',
-            fontWeight: 700,
-            cursor: 'pointer',
+            fontSize: '12.5rem',
+            fontWeight: selected ? 600 : 500,
             whiteSpace: 'nowrap',
           }}
         >
-          {Icon && <Icon size={15} />}
+          {Icon && <Icon size={13} />}
           {tab.label}
         </button>
       );
@@ -135,17 +131,19 @@ const StreamTabs: React.FC<{ active: StreamKind; onChange: (s: StreamKind) => vo
   </div>
 );
 
-/** Taller than the default outline pill (`pillButtonStyle`); Browse is the
-    single most important action on this screen (the persistent path to the
-    full catalog), so it gets a more prominent 40px-tall treatment; the icon
-    and mark scale up with it rather than sitting undersized in the extra
-    height. */
+/** Browse is the single most important action on this screen (the
+    persistent path to the full catalog), so it is the one prominent capsule
+    here, taller than the default pill; the icon and mark scale up with it
+    rather than sitting undersized in the extra height. */
 const browseButtonStyle: React.CSSProperties = {
-  ...pillButtonStyle,
-  height: '40rem',
-  padding: '0 22rem',
+  ...filledPillButtonStyle,
+  display: 'flex',
+  alignItems: 'center',
   gap: '10rem',
-  fontSize: '15rem',
+  height: '34rem',
+  padding: '0 18rem',
+  fontSize: '14rem',
+  flexShrink: 0,
 };
 
 /** Outline pill CTA that opens the full-catalog Select flow: the header's
@@ -178,29 +176,39 @@ const GearFilterPill: React.FC<{
       alignItems: 'center',
       gap: '8rem',
       flexShrink: 0,
-      padding: '8rem 16rem',
-      fontSize: '14rem',
-      fontWeight: 400,
+      height: '32rem',
+      padding: '0 14rem',
+      fontSize: '12.5rem',
+      fontWeight: active ? 600 : 500,
       borderRadius: '9999rem',
-      border: active ? `1rem solid ${WHITE}` : BORDER,
-      backgroundColor: 'transparent',
-      color: active ? WHITE : GRAY,
+      // The active filter is the prominent (filled white) capsule; the rest
+      // are regular glass.
+      ...(active
+        ? {
+            background:
+              'linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(232, 232, 238, 0.94))',
+            border: '1rem solid rgba(255, 255, 255, 0.9)',
+            color: BLACK,
+          }
+        : { ...glassStyle, color: WHITE }),
       cursor: 'pointer',
       whiteSpace: 'nowrap',
     }}
   >
-    <GearIcon gear={id} size={20} color={active ? WHITE : GRAY} />
+    <GearIcon gear={id} size={18} color={active ? BLACK : WHITE} />
     {label}
   </button>
 );
 
 /** Row of radio-select gear filters shared across streams; default is no
-    filter (every gear type). Edges fade to black under the same gradient
-    scrim as the chain gallery's horizontal scroll (`EdgeFade`). The row
-    bleeds EDGE_FADE_WIDTH past the column on each side and re-applies that
-    as scroll padding, so at rest the first/last pill sits flush with the
-    column edge (outside the fade) and only slides under the gradient once
-    actually scrolled. */
+    filter (every gear type). Edges fade out under the same scrollport mask
+    as the chain gallery's horizontal scroll. The row bleeds EDGE_FADE_WIDTH
+    past the column on each side and re-applies that as scroll padding, so at
+    rest the first/last pill sits flush with the column edge (outside the
+    fade) and only slides under the mask once actually scrolled. */
+/** Bottom fade of the sheet's scroll area. */
+const SCROLL_FADE_MASK = 'linear-gradient(to bottom, #000 calc(100% - 28rem), rgba(0, 0, 0, 0))';
+const GEAR_ROW_MASK = `linear-gradient(to right, rgba(0, 0, 0, 0), #000 ${EDGE_FADE_WIDTH}rem, #000 calc(100% - ${EDGE_FADE_WIDTH}rem), rgba(0, 0, 0, 0))`;
 const GearFilterRow: React.FC<{ active: string | null; onChange: (id: string | null) => void }> = ({
   active,
   onChange,
@@ -230,6 +238,8 @@ const GearFilterRow: React.FC<{ active: string | null; onChange: (id: string | n
           // margins cancel it outside so the surrounding layout is unchanged.
           padding: `2rem ${EDGE_FADE_WIDTH}rem`,
           margin: '-2rem 0',
+          WebkitMaskImage: GEAR_ROW_MASK,
+          maskImage: GEAR_ROW_MASK,
         }}
       >
         {GEAR_FILTERS.map((g) => (
@@ -242,8 +252,6 @@ const GearFilterRow: React.FC<{ active: string | null; onChange: (id: string | n
           />
         ))}
       </div>
-      <EdgeFade side="left" />
-      <EdgeFade side="right" />
     </div>
   );
 };
@@ -299,11 +307,11 @@ const ToneCard: React.FC<{
 }> = ({ tone, loading, disabled, onPick }) => (
   <div
     onClick={disabled ? undefined : onPick}
+    className={GLASS_CLEAR_CLASS}
     style={{
       position: 'relative',
       width: '100%',
-      borderRadius: '12rem',
-      backgroundColor: SURFACE,
+      borderRadius: '18rem',
       cursor: disabled ? 'not-allowed' : 'pointer',
       opacity: disabled && !loading ? DISABLED_OPACITY : 1,
       boxSizing: 'border-box',
@@ -321,10 +329,11 @@ const ToneCard: React.FC<{
       style={{
         width: `${CARD_IMAGE_SIZE}rem`,
         height: `${CARD_IMAGE_SIZE}rem`,
-        borderRadius: '8rem',
+        borderRadius: '14rem',
         overflow: 'hidden',
         flexShrink: 0,
-        backgroundColor: SURFACE_RAISED,
+        backgroundColor: ARTWORK_BG,
+        boxShadow: 'inset 0 0 0 1rem rgba(255, 255, 255, 0.12)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -487,8 +496,8 @@ const Paginator: React.FC<{
               onClick={() => onPageChange(p)}
               style={{
                 padding: '4rem 12rem',
-                borderRadius: '6rem',
-                border: p === page ? '1rem solid #ffffff' : BORDER,
+                borderRadius: '9999rem',
+                border: p === page ? '1rem solid #ffffff' : GLASS_BORDER,
                 backgroundColor: 'transparent',
                 color: p === page ? '#ffffff' : MUTED,
                 fontSize: '13rem',
@@ -749,113 +758,87 @@ export const ToneBrowser: React.FC<ToneBrowserProps> = ({
   const showTrendingFooter = stream === 'trending' && !error && !loading;
 
   return (
+    // The browser is a glass sheet floating in the middle band: a fixed
+    // header (back, title, Browse, the stream picker and gear filters) over
+    // its own scroll area, so no scrim is needed to cover scrolled content.
     <div
-      ref={scrollRef}
-      className="hide-scrollbar"
+      className={GLASS_CLASS}
       style={{
         height: '100%',
-        overflowY: 'auto',
-        overflowX: 'hidden',
+        borderRadius: `${RADIUS_SHEET}rem`,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
         color: '#ffffff',
       }}
     >
-      {/* Header, pinned while the content scrolls beneath it. Matches the
-          expanded block card header (back arrow + hairline rule). The tabs
-          live in the pinned area too, so only the pills and results scroll
-          underneath. An inset black bar covers gear pills as they scroll
-          up; it's pulled in from the center-column edges so stereo VU
-          meters (which overflow their mono slot into this column) stay
-          visible. The inner div re-centers the 800px content column. */}
       <div
         style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 2,
+          flexShrink: 0,
+          padding: '14rem 16rem 0',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12rem',
         }}
       >
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            // Stereo meters overflow ~6px into this column; 12px clears
-            // them while still covering the 32px pill-row edge fade.
-            left: '12rem',
-            right: '12rem',
-            backgroundColor: '#000000',
-            pointerEvents: 'none',
-          }}
-        />
-        <div
-          style={{
-            position: 'relative',
-            maxWidth: `${COLUMN_MAX_WIDTH}rem`,
-            margin: '0 auto',
-            width: '100%',
-          }}
-        >
-          <div
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10rem' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            {...helpProps(HELP.closeToneBrowser)}
             style={{
               display: 'flex',
-              // Top-align with the band (Browse is taller); arrow + label stay
-              // centered on each other inside the back button.
-              alignItems: 'flex-start',
-              gap: '16rem',
-              // Top inset comes from Plugin's shared 24px middle-band pad.
-              // No side inset; flush with the 800px column like ← BLOCK.
-              padding: '0 0 16rem',
+              alignItems: 'center',
+              gap: '10rem',
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              padding: 0,
+              margin: 0,
+              cursor: 'pointer',
+              color: '#ffffff',
             }}
           >
-            <button
-              type="button"
-              onClick={onClose}
-              {...helpProps(HELP.closeToneBrowser)}
+            <span
+              className={GLASS_CLEAR_CLASS}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16rem',
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                padding: 0,
-                margin: 0,
-                cursor: 'pointer',
-                color: '#ffffff',
+                width: '32rem',
+                height: '32rem',
+                borderRadius: '50%',
+                display: 'grid',
+                placeItems: 'center',
               }}
             >
-              <ArrowLeft size={16} style={{ display: 'block', flexShrink: 0 }} />
-              <span
-                style={{
-                  fontFamily: FONT_MONO,
-                  fontSize: '16rem',
-                  fontWeight: 400,
-                  textTransform: 'uppercase',
-                  lineHeight: 1.4,
-                }}
-              >
-                Select Tone
-              </span>
-            </button>
-            <div style={{ flex: 1 }} />
-            <BrowseButton onClick={onBrowseTone3000} />
-          </div>
-          <StreamTabs active={stream} onChange={switchStream} />
+              <ArrowLeft size={15} style={{ display: 'block', flexShrink: 0 }} />
+            </span>
+            <span style={{ fontSize: '16rem', fontWeight: 600, lineHeight: 1.2 }}>Select Tone</span>
+          </button>
+          <div style={{ flex: 1 }} />
+          <BrowseButton onClick={onBrowseTone3000} />
         </div>
+        <StreamTabs active={stream} onChange={switchStream} />
+        {!showSignInPrompt && (
+          <GearFilterRow active={gearFilter} onChange={handleGearFilterChange} />
+        )}
       </div>
 
-      {/* Scrolling content; 24px bottom pad so the paginator / last row
-          has air above the faceplate (Select fills the center column to
-          the faceplate; this pad lives in the scroll content, not the
-          shared meter band). */}
-      <div style={{ maxWidth: `${COLUMN_MAX_WIDTH}rem`, margin: '0 auto', width: '100%' }}>
-        <div style={{ padding: '20rem 0 24rem' }}>
-          {!showSignInPrompt && (
-            <GearFilterRow active={gearFilter} onChange={handleGearFilterChange} />
-          )}
-
+      {/* Scrolling content, fading out under the sheet's bottom edge. */}
+      <div
+        ref={scrollRef}
+        className="hide-scrollbar"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: '12rem 16rem 16rem',
+          WebkitMaskImage: SCROLL_FADE_MASK,
+          maskImage: SCROLL_FADE_MASK,
+        }}
+      >
+        <div style={{ maxWidth: `${COLUMN_MAX_WIDTH}rem`, margin: '0 auto', width: '100%' }}>
           {pickError && (
-            <div style={{ marginTop: '16rem' }}>
+            <div style={{ marginBottom: '12rem' }}>
               <span style={{ fontSize: '12rem', fontWeight: 400, color: BRAND_RED }}>
                 {pickError}
               </span>
@@ -863,9 +846,7 @@ export const ToneBrowser: React.FC<ToneBrowserProps> = ({
           )}
 
           {/* Tone grid / empty state / sign-in prompt */}
-          <div style={{ marginTop: '24rem', marginBottom: showPaginator ? '16rem' : 0 }}>
-            {body}
-          </div>
+          <div style={{ marginBottom: showPaginator ? '16rem' : 0 }}>{body}</div>
 
           {showPaginator && (
             <div
@@ -882,7 +863,7 @@ export const ToneBrowser: React.FC<ToneBrowserProps> = ({
 
           {showTrendingFooter &&
             (authenticated ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '48rem 24rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '32rem 24rem' }}>
                 <BrowseButton onClick={onBrowseTone3000} />
               </div>
             ) : (

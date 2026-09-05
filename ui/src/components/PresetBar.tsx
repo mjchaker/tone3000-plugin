@@ -21,7 +21,16 @@ import type { ActivePreset, PresetInfo } from '../types/chain';
 import { useDismissable } from '../hooks/useDismissable';
 import { useToast } from './Toast';
 import { HELP, helpProps } from './helpText';
-import { BORDER, FONT_MONO, GRAY, SEGMENTED_TRACK } from './theme';
+import {
+  FONT_MONO,
+  GLASS_BORDER,
+  GLASS_CLASS,
+  GRAY,
+  RADIUS_CHIP,
+  RADIUS_PANEL,
+  SURFACE,
+  glassStyle,
+} from './theme';
 import { setPresetPcNumbersEnabled, usePresetPcNumbersEnabled } from './uiPreferences';
 
 /**
@@ -38,15 +47,14 @@ import { setPresetPcNumbersEnabled, usePresetPcNumbersEnabled } from './uiPrefer
  */
 
 const MUTED = GRAY;
-const PANEL_BG = '#141416';
 
+// Dropdown panels (browse, save) are glass sheets hanging off the capsule.
 const panelStyle: React.CSSProperties = {
   position: 'absolute',
   top: 'calc(100% + 10rem)',
   left: '-8rem',
-  backgroundColor: PANEL_BG,
-  border: BORDER,
-  borderRadius: '14rem',
+  ...glassStyle,
+  borderRadius: `${RADIUS_PANEL}rem`,
   padding: '16rem',
   zIndex: 200,
   boxSizing: 'border-box',
@@ -55,9 +63,9 @@ const panelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: '100%',
   boxSizing: 'border-box',
-  backgroundColor: '#1C1C1E',
-  border: BORDER,
-  borderRadius: '10rem',
+  backgroundColor: SURFACE,
+  border: GLASS_BORDER,
+  borderRadius: `${RADIUS_CHIP}rem`,
   color: '#ffffff',
   fontSize: '13rem',
   // Typed text and placeholders are body text: reset the global 600 default.
@@ -436,16 +444,16 @@ export const PresetBar: React.FC<PresetBarProps> = ({
       ref={containerRef}
       style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8rem' }}
     >
-      {/* ‹ name › pill */}
+      {/* ‹ name › | save capsule: one glass pill carries the preset stepper
+          and, past a hairline, the save action. */}
       <div
+        className={GLASS_CLASS}
         style={{
           display: 'flex',
           alignItems: 'stretch',
-          height: '36rem',
-          borderRadius: '8rem',
-          // Same fill as the model select bar (SEGMENTED_TRACK).
-          backgroundColor: SEGMENTED_TRACK,
-          padding: '0 4rem',
+          height: '40rem',
+          borderRadius: '9999rem',
+          padding: '0 6rem',
           flexShrink: 0,
         }}
       >
@@ -459,14 +467,14 @@ export const PresetBar: React.FC<PresetBarProps> = ({
             background: 'transparent',
             border: 'none',
             color: active ? '#ffffff' : MUTED,
-            fontSize: '14rem',
-            fontWeight: 400,
+            fontSize: '13rem',
+            fontWeight: 600,
             cursor: 'pointer',
             // Constant width so the pill never resizes with the name; long
             // names ellipsize. Full pill height is the click target.
             width: '150rem',
             height: '100%',
-            lineHeight: '36rem',
+            lineHeight: '38rem',
             textAlign: 'center',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -479,12 +487,25 @@ export const PresetBar: React.FC<PresetBarProps> = ({
         <button onClick={() => step(1)} {...helpProps(HELP.presetNext)} style={chevronStyle}>
           <ChevronRight size={14} />
         </button>
+        <span
+          aria-hidden
+          style={{
+            alignSelf: 'center',
+            width: '1rem',
+            height: '18rem',
+            background: 'rgba(255, 255, 255, 0.14)',
+            margin: '0 4rem',
+          }}
+        />
+        {/* Save */}
+        <button
+          onClick={openSave}
+          {...helpProps(HELP.presetSave)}
+          style={{ ...iconButtonStyle, color: MUTED }}
+        >
+          <Save size={16} />
+        </button>
       </div>
-
-      {/* Save */}
-      <button onClick={openSave} {...helpProps(HELP.presetSave)} style={iconButtonStyle}>
-        <Save size={18} />
-      </button>
 
       {/* New: back to the factory-default state, greyed once already there. */}
       <IconButton
@@ -494,7 +515,8 @@ export const PresetBar: React.FC<PresetBarProps> = ({
         }}
         disabled={atDefault}
         help={HELP.presetNew}
-        size={28}
+        size={40}
+        glass
       >
         <Plus size={18} />
       </IconButton>

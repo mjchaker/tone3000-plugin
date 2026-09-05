@@ -14,22 +14,29 @@ import type { AudioDevice } from '../hooks/useAudioDevice';
 import type { ChainItem } from '../types/chain';
 import { isSlimSizeFull, SLIM_SIZE_FULL, SLIM_SIZE_LITE } from '../types/chain';
 import {
+  FONT_MONO,
+  GLASS_CLASS,
+  GLASS_CLEAR_CLASS,
   GRAY,
   LINK_BLUE,
   MUTED,
+  RADIUS_SHEET,
   SUBTLE,
   WHITE,
   segmentedCellStyle,
   segmentedGroupStyle,
+  segmentedSelectedStyle,
 } from './theme';
 import {
-  FIELD_BORDER,
   RadioOption,
+  ROW_PADDING,
   SECTION_GAP,
   SelectField,
+  SettingsPanel,
   ToggleRow,
   ctaButtonStyle,
   descriptionStyle,
+  eyebrowStyle,
   outlinedFieldStyle,
   sectionLabelStyle,
 } from './controls';
@@ -125,7 +132,7 @@ const NAM_A2_SIZE_OPTIONS: { slimSize: number; label: string; description: strin
   { slimSize: SLIM_SIZE_FULL, label: 'A2-Full', description: 'Maximum accuracy model' },
 ];
 
-/** Full-width tab bar (mockup style: optional icon + label, active underline).
+/** Segmented glass capsule (optional icon + label, selected cell raised).
  *  System first: device setup is the main abandon risk. */
 const TabBar: React.FC<{
   active: SettingsTab;
@@ -138,7 +145,7 @@ const TabBar: React.FC<{
   return (
     <div
       role="tablist"
-      style={{ display: 'flex', borderBottom: FIELD_BORDER, marginBottom: '28rem' }}
+      style={{ ...segmentedGroupStyle(), height: '34rem', width: '100%', marginBottom: '24rem' }}
     >
       {tabs.map((tab) => {
         const selected = tab.id === active;
@@ -149,20 +156,13 @@ const TabBar: React.FC<{
             aria-selected={selected}
             onClick={() => onChange(tab.id)}
             style={{
+              ...segmentedCellStyle(),
+              ...(selected ? segmentedSelectedStyle : {}),
               flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
               gap: '8rem',
-              padding: '12rem 0',
-              background: 'transparent',
-              border: 'none',
-              borderBottom: `2rem solid ${selected ? '#ffffff' : 'transparent'}`,
-              marginBottom: '-1rem',
-              color: selected ? '#ffffff' : SUBTLE,
-              fontSize: '14rem',
-              fontWeight: 600,
-              cursor: 'pointer',
+              color: selected ? WHITE : MUTED,
+              fontSize: '12.5rem',
+              fontWeight: selected ? 600 : 500,
             }}
           >
             {tab.icon}
@@ -268,198 +268,67 @@ export const Settings: React.FC<SettingsProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: '20rem',
+        marginBottom: '16rem',
       }}
     >
-      <span style={{ fontSize: '22rem', fontWeight: 600, color: '#ffffff' }}>Settings</span>
+      <span style={{ fontSize: '16rem', fontWeight: 600, color: '#ffffff' }}>Settings</span>
       <button
         onClick={onClose}
+        className={GLASS_CLEAR_CLASS}
         style={{
-          background: 'transparent',
-          border: 'none',
-          color: '#ffffff',
+          width: '32rem',
+          height: '32rem',
+          borderRadius: '50%',
+          color: MUTED,
           cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          padding: '4rem',
+          display: 'grid',
+          placeItems: 'center',
+          padding: 0,
         }}
       >
-        <XIcon size={20} />
+        <XIcon size={15} />
       </button>
     </div>
   );
 
   const pluginTab = (
-    <>
-      <ToggleRow
-        label="Info Bar"
-        description="Strip under the faceplate with hover tips and CPU load."
-        value={hintsEnabled}
-        onChange={setHintsEnabled}
-      />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: `${SECTION_GAP}rem` }}>
+      <SettingsPanel title="Interface">
+        <ToggleRow
+          flush
+          label="Info Bar"
+          description="Strip under the faceplate with hover tips and CPU load."
+          value={hintsEnabled}
+          onChange={setHintsEnabled}
+        />
+      </SettingsPanel>
 
-      <div style={{ marginBottom: `${SECTION_GAP}rem` }} role="radiogroup" aria-label="NAM A2 Size">
-        <span style={sectionLabelStyle}>NAM A2 Size</span>
-        <p style={descriptionStyle}>
+      <SettingsPanel title="NAM A2 Size" role="radiogroup" ariaLabel="NAM A2 Size">
+        <p style={{ ...descriptionStyle, margin: 0, padding: '10rem 14rem' }}>
           Default size for new NAM blocks. Existing blocks keep their own, so presets load as saved.
         </p>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16rem',
-            marginTop: '16rem',
-          }}
+        {NAM_A2_SIZE_OPTIONS.map((option) => (
+          <RadioOption
+            key={option.label}
+            selected={isSlimSizeFull(namSlimSizeDefault) === isSlimSizeFull(option.slimSize)}
+            label={option.label}
+            description={option.description}
+            onSelect={() => onNamSlimSizeDefaultChange(option.slimSize)}
+          />
+        ))}
+        <ToggleRow
+          flush
+          label="Per-Block NAM Size"
+          description={
+            <>
+              Adds a <LiteFullTogglePreview /> toggle to every NAM block. When off, a block only
+              shows its size if it differs from your default.
+            </>
+          }
+          value={blockSizeControlEnabled}
+          onChange={setBlockSizeControlEnabled}
         >
-          {NAM_A2_SIZE_OPTIONS.map((option) => (
-            <RadioOption
-              key={option.label}
-              selected={isSlimSizeFull(namSlimSizeDefault) === isSlimSizeFull(option.slimSize)}
-              label={option.label}
-              description={option.description}
-              onSelect={() => onNamSlimSizeDefaultChange(option.slimSize)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <ToggleRow
-        label="Per-Block NAM Size"
-        description={
-          <>
-            Adds a <LiteFullTogglePreview /> toggle to every NAM block. When off, a block only shows
-            its size if it differs from your default.
-          </>
-        }
-        value={blockSizeControlEnabled}
-        onChange={setBlockSizeControlEnabled}
-      >
-        {blockSizeControlEnabled && (
-          <p
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16rem',
-              margin: 0,
-              fontSize: '14rem',
-              fontWeight: 400,
-              color: WHITE,
-              lineHeight: 1.45,
-            }}
-          >
-            <Info size={20} style={{ flexShrink: 0, color: WHITE }} aria-hidden />
-            <span>
-              Look for <LiteFullTogglePreview /> next to each block&apos;s power button.
-            </span>
-          </p>
-        )}
-      </ToggleRow>
-
-      <ToggleRow
-        label="Per-Block Normalization"
-        description="Each block has normalization enabled, which levels output for consistent volume across signal blocks. Turning this on reveals an optional control that lets you disable normalization per block."
-        value={blockNormalizeControlEnabled}
-        onChange={setBlockNormalizeControlEnabled}
-      >
-        {blockNormalizeControlEnabled && (
-          <p
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16rem',
-              margin: 0,
-              fontSize: '14rem',
-              fontWeight: 400,
-              color: WHITE,
-              lineHeight: 1.45,
-            }}
-          >
-            <Info size={20} style={{ flexShrink: 0, color: WHITE }} aria-hidden />
-            <span>
-              Normalization is now controlled per block. Look for the{' '}
-              <Equal
-                size={12}
-                style={{
-                  display: 'inline',
-                  verticalAlign: '-1rem',
-                  margin: '0 2rem',
-                  color: WHITE,
-                }}
-                aria-label="equals"
-              />{' '}
-              icon on each block, enabled by default.
-            </span>
-          </p>
-        )}
-      </ToggleRow>
-
-      <ToggleRow
-        label="Calibration"
-        description="Matches your input level to the capture's original recording level, for accurate gain staging."
-        value={calibrationEnabled}
-        onChange={setCalibrationEnabled}
-      >
-        {calibrationEnabled && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16rem' }}>
-            {/* Kill the webkit number-input chrome (spinners, focus ring). */}
-            <style>
-              {`.settings-number-input::-webkit-outer-spin-button,
-                .settings-number-input::-webkit-inner-spin-button {
-                  -webkit-appearance: none;
-                  margin: 0;
-                }
-                .settings-number-input:focus { outline: none; }`}
-            </style>
-            <div style={{ position: 'relative', width: '100%' }}>
-              <input
-                type="number"
-                className="settings-number-input"
-                value={dbuDraft ?? dbuValue.toFixed(1)}
-                onFocus={() => setDbuDraft(dbuValue.toFixed(1))}
-                onChange={(e) => setDbuDraft(e.target.value)}
-                onBlur={commitDbuDraft}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur();
-                }}
-                step="0.1"
-                min="-60"
-                max="60"
-                placeholder="Value"
-                style={{
-                  ...outlinedFieldStyle,
-                  width: '100%',
-                  padding: '12rem 52rem 12rem 16rem',
-                  appearance: 'none',
-                  WebkitAppearance: 'none',
-                }}
-              />
-              <span
-                style={{
-                  position: 'absolute',
-                  right: '16rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: GRAY,
-                  fontSize: '14rem',
-                  fontWeight: 700,
-                  pointerEvents: 'none',
-                }}
-              >
-                dBu
-              </span>
-            </div>
-            <p style={{ ...descriptionStyle, margin: 0 }}>
-              Set the dBu level that matches your DAW's max digital level. Typical values: +12 dBu
-              (professional gear), +4 dBu (semi-pro).{' '}
-              <a
-                href={CALIBRATION_DOCS_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: LINK_BLUE, textDecoration: 'none' }}
-              >
-                Learn More
-              </a>
-            </p>
+          {blockSizeControlEnabled && (
             <p
               style={{
                 display: 'flex',
@@ -474,8 +343,38 @@ export const Settings: React.FC<SettingsProps> = ({
             >
               <Info size={20} style={{ flexShrink: 0, color: WHITE }} aria-hidden />
               <span>
-                Captures that include calibration data show a{' '}
-                <Gauge
+                Look for <LiteFullTogglePreview /> next to each block&apos;s power button.
+              </span>
+            </p>
+          )}
+        </ToggleRow>
+      </SettingsPanel>
+
+      <SettingsPanel title="Levels">
+        <ToggleRow
+          flush
+          label="Per-Block Normalization"
+          description="Each block has normalization enabled, which levels output for consistent volume across signal blocks. Turning this on reveals an optional control that lets you disable normalization per block."
+          value={blockNormalizeControlEnabled}
+          onChange={setBlockNormalizeControlEnabled}
+        >
+          {blockNormalizeControlEnabled && (
+            <p
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16rem',
+                margin: 0,
+                fontSize: '14rem',
+                fontWeight: 400,
+                color: WHITE,
+                lineHeight: 1.45,
+              }}
+            >
+              <Info size={20} style={{ flexShrink: 0, color: WHITE }} aria-hidden />
+              <span>
+                Normalization is now controlled per block. Look for the{' '}
+                <Equal
                   size={12}
                   style={{
                     display: 'inline',
@@ -483,116 +382,220 @@ export const Settings: React.FC<SettingsProps> = ({
                     margin: '0 2rem',
                     color: WHITE,
                   }}
-                  aria-label="gauge"
+                  aria-label="equals"
                 />{' '}
-                icon on their block and it’s enabled by default.
+                icon on each block, enabled by default.
               </span>
             </p>
-            <p style={{ ...descriptionStyle, margin: 0 }}>
-              When one calibrated NAM feeds another, output calibration data also sets the handoff
-              level between them.
-            </p>
-          </div>
-        )}
-      </ToggleRow>
+          )}
+        </ToggleRow>
 
-      <ToggleRow
-        label="Oversampling"
-        description="Reduces aliasing. Higher rates improve quality but use more CPU."
-        value={osEnabled}
-        onChange={setOsEnabled}
-      >
-        {osEnabled && (
+        <ToggleRow
+          flush
+          label="Calibration"
+          description="Matches your input level to the capture's original recording level, for accurate gain staging."
+          value={calibrationEnabled}
+          onChange={setCalibrationEnabled}
+        >
+          {calibrationEnabled && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16rem' }}>
+              {/* Kill the webkit number-input chrome (spinners, focus ring). */}
+              <style>
+                {`.settings-number-input::-webkit-outer-spin-button,
+                .settings-number-input::-webkit-inner-spin-button {
+                  -webkit-appearance: none;
+                  margin: 0;
+                }
+                .settings-number-input:focus { outline: none; }`}
+              </style>
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  type="number"
+                  className="settings-number-input"
+                  value={dbuDraft ?? dbuValue.toFixed(1)}
+                  onFocus={() => setDbuDraft(dbuValue.toFixed(1))}
+                  onChange={(e) => setDbuDraft(e.target.value)}
+                  onBlur={commitDbuDraft}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                  }}
+                  step="0.1"
+                  min="-60"
+                  max="60"
+                  placeholder="Value"
+                  style={{
+                    ...outlinedFieldStyle,
+                    width: '100%',
+                    padding: '12rem 52rem 12rem 16rem',
+                    appearance: 'none',
+                    WebkitAppearance: 'none',
+                  }}
+                />
+                <span
+                  style={{
+                    position: 'absolute',
+                    right: '16rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: GRAY,
+                    fontSize: '14rem',
+                    fontWeight: 700,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  dBu
+                </span>
+              </div>
+              <p style={{ ...descriptionStyle, margin: 0 }}>
+                Set the dBu level that matches your DAW's max digital level. Typical values: +12 dBu
+                (professional gear), +4 dBu (semi-pro).{' '}
+                <a
+                  href={CALIBRATION_DOCS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: LINK_BLUE, textDecoration: 'none' }}
+                >
+                  Learn More
+                </a>
+              </p>
+              <p
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16rem',
+                  margin: 0,
+                  fontSize: '14rem',
+                  fontWeight: 400,
+                  color: WHITE,
+                  lineHeight: 1.45,
+                }}
+              >
+                <Info size={20} style={{ flexShrink: 0, color: WHITE }} aria-hidden />
+                <span>
+                  Captures that include calibration data show a{' '}
+                  <Gauge
+                    size={12}
+                    style={{
+                      display: 'inline',
+                      verticalAlign: '-1rem',
+                      margin: '0 2rem',
+                      color: WHITE,
+                    }}
+                    aria-label="gauge"
+                  />{' '}
+                  icon on their block and it’s enabled by default.
+                </span>
+              </p>
+              <p style={{ ...descriptionStyle, margin: 0 }}>
+                When one calibrated NAM feeds another, output calibration data also sets the handoff
+                level between them.
+              </p>
+            </div>
+          )}
+        </ToggleRow>
+      </SettingsPanel>
+
+      <SettingsPanel title="Processing">
+        <ToggleRow
+          flush
+          label="Oversampling"
+          description="Reduces aliasing. Higher rates improve quality but use more CPU."
+          value={osEnabled}
+          onChange={setOsEnabled}
+        >
+          {osEnabled && (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8rem',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '14rem',
+                  fontWeight: 400,
+                  color: MUTED,
+                }}
+              >
+                Rate
+              </span>
+              <SelectField
+                value={String(osFactorIndex) as '0' | '1' | '2'}
+                options={OS_FACTOR_OPTIONS}
+                onChange={(v) => setOsFactorIndex(Number(v))}
+                ariaLabel="Oversampling rate"
+              />
+            </div>
+          )}
+        </ToggleRow>
+
+        <ToggleRow
+          flush
+          label="Multi-Core Processing"
+          description="Spreads the work across CPU cores for more headroom: stereo chains process in parallel, and oversampled NAM models split across cores. Doesn't change the sound."
+          value={multiCore}
+          onChange={onMultiCoreChange}
+        />
+      </SettingsPanel>
+
+      {/* MIDI Learn/mapping is plugin-level (reads the processor's MIDI
+          buffer), so it belongs here and works in DAW builds too. */}
+      <div>
+        <span style={eyebrowStyle}>MIDI Mapping</span>
+        <p style={{ ...descriptionStyle, margin: '0 0 10rem', padding: '0 14rem' }}>
+          Control the plugin from pedals and knobs. Mappings are saved with the plugin and work in
+          your DAW too.
+        </p>
+        <MidiMapSettings chain={chain} chainRight={chainRight} />
+      </div>
+
+      <SettingsPanel title="Diagnostics">
+        <div style={{ padding: ROW_PADDING }}>
+          <span style={sectionLabelStyle}>Logs</span>
+          <p style={descriptionStyle}>
+            Copy recent diagnostic logs to the clipboard and paste them into a bug report.
+          </p>
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: '8rem',
+              gap: '10rem',
+              marginTop: '10rem',
             }}
           >
-            <span
+            <button onClick={handleCopyLogs} style={ctaButtonStyle}>
+              Copy Logs
+            </button>
+            <button
+              onClick={handleRevealLogs}
               style={{
-                fontSize: '14rem',
-                fontWeight: 400,
-                color: MUTED,
+                background: 'transparent',
+                border: 'none',
+                color: SUBTLE,
+                fontSize: '12rem',
+                cursor: 'pointer',
+                padding: 0,
+                textAlign: 'left',
               }}
             >
-              Rate
-            </span>
-            <SelectField
-              value={String(osFactorIndex) as '0' | '1' | '2'}
-              options={OS_FACTOR_OPTIONS}
-              onChange={(v) => setOsFactorIndex(Number(v))}
-              ariaLabel="Oversampling rate"
-            />
+              Reveal log file on disk
+            </button>
+            {logStatus && (
+              <p style={{ ...descriptionStyle, fontSize: '12rem', margin: 0 }}>{logStatus}</p>
+            )}
           </div>
+        </div>
+        {webInspector?.supported && (
+          <ToggleRow
+            flush
+            label="Inspector"
+            description="Debugging aid: right-click the plugin UI and choose Inspect Element. Also restores the webview Reload menu. Leave off unless support asks for it."
+            value={webInspector.enabled}
+            onChange={handleWebInspectorChange}
+          />
         )}
-      </ToggleRow>
-
-      <ToggleRow
-        label="Multi-Core Processing"
-        description="Spreads the work across CPU cores for more headroom: stereo chains process in parallel, and oversampled NAM models split across cores. Doesn't change the sound."
-        value={multiCore}
-        onChange={onMultiCoreChange}
-      />
-
-      {/* MIDI Learn/mapping is plugin-level (reads the processor's MIDI
-          buffer), so it belongs here and works in DAW builds too. */}
-      <div style={{ marginBottom: `${SECTION_GAP}rem` }}>
-        <span style={sectionLabelStyle}>MIDI Mapping</span>
-        <p style={descriptionStyle}>
-          Control the plugin from pedals and knobs. Mappings are saved with the plugin and work in
-          your DAW too.
-        </p>
-        <div style={{ marginTop: '16rem' }}>
-          <MidiMapSettings chain={chain} chainRight={chainRight} />
-        </div>
-      </div>
-
-      <div style={{ marginBottom: `${SECTION_GAP}rem` }}>
-        <span style={sectionLabelStyle}>Diagnostics</span>
-        <p style={descriptionStyle}>
-          Copy recent diagnostic logs to the clipboard and paste them into a bug report.
-        </p>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16rem',
-            marginTop: '16rem',
-          }}
-        >
-          <button onClick={handleCopyLogs} style={ctaButtonStyle}>
-            Copy Logs
-          </button>
-          <button
-            onClick={handleRevealLogs}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: SUBTLE,
-              fontSize: '12rem',
-              cursor: 'pointer',
-              padding: 0,
-              textAlign: 'left',
-            }}
-          >
-            Reveal log file on disk
-          </button>
-          {logStatus && (
-            <p style={{ ...descriptionStyle, fontSize: '12rem', margin: 0 }}>{logStatus}</p>
-          )}
-        </div>
-      </div>
-
-      {webInspector?.supported && (
-        <ToggleRow
-          label="Inspector"
-          description="Debugging aid: right-click the plugin UI and choose Inspect Element. Also restores the webview Reload menu. Leave off unless support asks for it."
-          value={webInspector.enabled}
-          onChange={handleWebInspectorChange}
-        />
-      )}
+      </SettingsPanel>
 
       {/* Version / update sit last so diagnostics stay above the footer. */}
       {(version || update) && (
@@ -614,42 +617,65 @@ export const Settings: React.FC<SettingsProps> = ({
             </a>
           )}
           {version && (
-            <p style={{ ...descriptionStyle, fontSize: '12rem', color: SUBTLE, margin: 0 }}>
+            <p
+              style={{
+                ...descriptionStyle,
+                fontFamily: FONT_MONO,
+                fontSize: '10.5rem',
+                color: SUBTLE,
+                margin: 0,
+                padding: '0 14rem',
+              }}
+            >
               TONE3000 v{version}
             </p>
           )}
         </div>
       )}
-    </>
+    </div>
   );
 
   return (
+    // A scrim over the whole plugin (so nothing behind stays clickable) with
+    // the settings as a glass sheet floating inside the middle band: clear of
+    // the toolbar above and the dock below, inset from the sides.
     <div
-      className="hide-scrollbar"
       style={{
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: '#000000',
+        backgroundColor: 'rgba(0, 0, 0, 0.45)',
         zIndex: 2000,
-        overflow: 'auto',
       }}
     >
       <div
+        className={`hide-scrollbar ${GLASS_CLASS}`}
         style={{
-          maxWidth: '480rem',
-          margin: '0 auto',
-          padding: '28rem 24rem 40rem',
-          color: '#ffffff',
-          boxSizing: 'border-box',
+          position: 'absolute',
+          top: '76rem',
+          left: '24rem',
+          right: '24rem',
+          bottom: '158rem',
+          borderRadius: `${RADIUS_SHEET}rem`,
+          overflow: 'auto',
         }}
       >
-        {header}
-        {/* One tab (hosted) = no tab bar. */}
-        {standalone && <TabBar active={tab} onChange={setTab} />}
-        {tab === 'system' && standalone ? <SystemSettings device={device} /> : pluginTab}
+        <div
+          style={{
+            maxWidth: '480rem',
+            margin: '0 auto',
+            padding: '20rem 24rem 32rem',
+            color: '#ffffff',
+            boxSizing: 'border-box',
+          }}
+        >
+          {header}
+          {/* One tab (hosted) = no tab bar. */}
+          {standalone && <TabBar active={tab} onChange={setTab} />}
+          {tab === 'system' && standalone ? <SystemSettings device={device} /> : pluginTab}
+        </div>
       </div>
     </div>
   );

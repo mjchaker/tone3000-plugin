@@ -48,28 +48,35 @@ import { useToast } from './Toast';
 import { ChromeIconButton, ChromeTextButton, chromeIcon } from './ChromeIconButton';
 import { T3K_API } from '../t3k/config';
 import {
+  ARTWORK_BG,
   BORDER,
+  GLASS_CLASS,
+  GLASS_CLEAR_CLASS,
   GRAY,
   ICON_BOX_SIZE,
   ICON_SIZE,
+  KNOB_SIZE_PRIMARY,
   KNOB_SIZE_SECONDARY,
-  FONT_MONO,
   MUTED,
+  RADIUS_PANEL,
   SEGMENTED_TRACK,
   WHITE,
+  faceplateChromeLift,
   segmentedCellStyle,
   segmentedGroupStyle,
   uiOffClass,
 } from './theme';
 
-/** Tone image; matches the Figma detail mock (fits body with model select). */
-const IMAGE_SIZE = 192;
-/** Info view artwork; Figma detail mock is 160 beside the metadata column. */
+/** Tone artwork in the body's right panel (fits beside counts + creator). */
+const IMAGE_SIZE = 160;
+/** Info view artwork beside the metadata column. */
 const IMAGE_SIZE_INFO = 160;
-/** Mini meter height in the side rails (meter sits centered above its knob). */
-const RAIL_METER_HEIGHT = 160;
-/** Centers the normalize (=) chrome box on the Out knob. */
-const NORMALIZE_BUTTON_OFFSET = -(KNOB_SIZE_SECONDARY - ICON_BOX_SIZE) / 2;
+/** Width of the body's left column: model picker over the knob panel. */
+const LEFT_COLUMN_WIDTH = 256;
+/** Mini meter height above the In / Out knobs inside the knob panel. */
+const RAIL_METER_HEIGHT = 72;
+/** Artwork thumb in the card header. */
+const HEADER_THUMB_SIZE = 40;
 
 /** Downloads / bookmarks / models count with a leading icon (same pattern as ToneBrowser). */
 const CountStat: React.FC<{ icon: React.ReactNode; value: number }> = ({ icon, value }) => (
@@ -579,8 +586,8 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
             alignSelf: 'flex-start',
             display: 'flex',
             alignItems: 'center',
-            gap: '16rem',
-            marginBottom: '16rem',
+            gap: '10rem',
+            marginBottom: '8rem',
             flexShrink: 0,
             background: 'transparent',
             border: 'none',
@@ -590,21 +597,23 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
             color: WHITE,
           }}
         >
-          <ArrowLeft size={16} style={{ display: 'block', flexShrink: 0 }} />
           <span
+            className={GLASS_CLEAR_CLASS}
             style={{
-              fontFamily: FONT_MONO,
-              fontSize: '16rem',
-              fontWeight: 400,
-              textTransform: 'uppercase',
-              lineHeight: 1.4,
+              width: '28rem',
+              height: '28rem',
+              borderRadius: '50%',
+              display: 'grid',
+              placeItems: 'center',
             }}
           >
-            Block
+            <ArrowLeft size={15} style={{ display: 'block', flexShrink: 0 }} />
           </span>
+          <span style={{ fontSize: '15rem', fontWeight: 600, lineHeight: 1.2 }}>Block</span>
         </button>
 
         <div
+          className={GLASS_CLASS}
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -613,7 +622,6 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
             height: showInfo ? undefined : `${CARD_HEIGHT}rem`,
             minHeight: `${CARD_HEIGHT}rem`,
             boxSizing: 'border-box',
-            border: BORDER,
             borderRadius: `${CARD_RADIUS}rem`,
             overflow: 'hidden',
           }}
@@ -631,16 +639,75 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
               borderBottom: BORDER,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '24rem', flexShrink: 0 }}>
-              <ChromeIconButton
-                tone="power"
-                on={enabled}
-                help={HELP.blockPower}
-                onClick={handleToggleEnabled}
+            {/* Identity: artwork thumb + title, with the format badge, gear
+              type and creator underneath. Lives in the header so the body is
+              free for controls. */}
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '12rem', minWidth: 0, flex: 1 }}
+            >
+              <div
+                style={{
+                  position: 'relative',
+                  width: `${HEADER_THUMB_SIZE}rem`,
+                  height: `${HEADER_THUMB_SIZE}rem`,
+                  borderRadius: '12rem',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  backgroundColor: ARTWORK_BG,
+                  boxShadow: 'inset 0 0 0 1rem rgba(255, 255, 255, 0.12)',
+                }}
               >
-                <Power />
-              </ChromeIconButton>
+                <ToneImage
+                  src={tone.images?.[0]}
+                  alt={tone.title}
+                  gear={tone.gear}
+                  local={tone.local}
+                  boxSize={HEADER_THUMB_SIZE}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem', minWidth: 0 }}>
+                <span
+                  style={{
+                    fontSize: '15rem',
+                    fontWeight: 600,
+                    color: WHITE,
+                    lineHeight: 1.2,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {tone.title}
+                </span>
+                <span
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8rem',
+                    fontSize: '12rem',
+                    fontWeight: 400,
+                    color: MUTED,
+                    minWidth: 0,
+                  }}
+                >
+                  {formatBadge && <FormatBadge label={formatBadge} a2={isNam} />}
+                  <span
+                    style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                  >
+                    {[gearLabel(tone.gear), tone.user ? `by ${tone.user.username}` : '']
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                </span>
+              </div>
+            </div>
 
+            {/* Chrome cluster: size chip, calibration, the EQ submenu (pill
+              when open), info, share, swap, trash, then power. EQ stays
+              rightmost in its submenu so opening grows left only; the
+              negative margin cancels the pill's right pad so EQ doesn't shift
+              relative to info. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10rem', flexShrink: 0 }}>
               {/* With per-block choice off, a block matching the new-block
                 default has nothing to say: the chip only appears on a
                 mismatch (e.g. a preset's FULL block under a lite default). */}
@@ -669,13 +736,6 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
                   {chromeIcon(<Gauge />, ICON_SIZE)}
                 </span>
               )}
-            </div>
-
-            {/* Right cluster: EQ submenu (pill when open), info, then share/swap/trash.
-              EQ stays rightmost in the submenu so opening grows left only.
-              marginRight cancels the pill's right pad so EQ doesn't shift
-              relative to info. */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '24rem', flexShrink: 0 }}>
               <div
                 style={{
                   display: 'inline-flex',
@@ -710,13 +770,7 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
                         PRE
                       </ChromeTextButton>
                     </span>
-                    <div
-                      style={{
-                        ...segmentedGroupStyle(),
-                        // Nested track, slightly quieter than the outer pill.
-                        backgroundColor: 'rgba(118, 118, 128, 0.24)',
-                      }}
-                    >
+                    <div style={segmentedGroupStyle()}>
                       <button
                         onClick={() => setEqView('sliders')}
                         {...helpProps(HELP.eqSlidersView)}
@@ -772,14 +826,23 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
               >
                 <Trash2 />
               </ChromeIconButton>
+              <ChromeIconButton
+                tone="power"
+                on={enabled}
+                help={HELP.blockPower}
+                onClick={handleToggleEnabled}
+              >
+                <Power />
+              </ChromeIconButton>
             </div>
           </div>
 
-          {/* Body: tone view uses BODY_PADDING; EQ spectrum/grid bleeds
-            edge-to-edge (interactive chrome insets itself). Info view drops
-            knobs/model select and lets the right column grow. While the
-            block is bypassed the whole body dims and goes inert (uiOffClass);
-            the header (power, EQ, info, share, swap, trash) stays live. */}
+          {/* Body: two clear-glass panels inset by BODY_PADDING. Tone view:
+            a fixed left column (model picker over the knob panel) and a
+            right panel with artwork, counts and creator; the EQ view swaps
+            both for one full-width well. Info view drops the left column and
+            lets the right panel grow. While the block is bypassed the whole
+            body dims and goes inert (uiOffClass); the header stays live. */}
           <div
             className={uiOffClass(!enabled)}
             style={{
@@ -788,12 +851,10 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'stretch',
-              gap: showEq || showInfo ? 0 : '24rem',
-              padding: showEq
-                ? 0
-                : showInfo
-                  ? `${BODY_PADDING}rem ${BODY_PADDING}rem 24rem`
-                  : `${BODY_PADDING}rem`,
+              gap: `${BODY_PADDING}rem`,
+              padding: showInfo
+                ? `${BODY_PADDING}rem ${BODY_PADDING}rem 24rem`
+                : `${BODY_PADDING}rem`,
               boxSizing: 'border-box',
               position: 'relative',
               transition: 'opacity 0.2s ease',
@@ -815,241 +876,25 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
               />
             ) : (
               <>
-                {/* Input rail: meter above In knob (Figma: gap 12). */}
+                {/* Left column: model picker over the gain / mix knobs, with
+                  mini meters above In and Out. Hidden in the info view. */}
                 {!showInfo && (
                   <div
                     style={{
+                      width: `${LEFT_COLUMN_WIDTH}rem`,
+                      flexShrink: 0,
                       display: 'flex',
                       flexDirection: 'column',
-                      alignItems: 'center',
-                      flexShrink: 0,
-                      gap: '12rem',
+                      gap: `${BODY_PADDING}rem`,
+                      minHeight: 0,
                     }}
                   >
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: 0 }}>
-                      <BlockMeter meterId={meterId.blockIn(blockId)} length={RAIL_METER_HEIGHT} />
-                    </div>
-                    <KnobControl
-                      label="In"
-                      value={inputGain}
-                      onChange={(val) => {
-                        setInputGain(val);
-                        setParam('inputGain', val);
-                      }}
-                      onDragStateChange={handleKnobDragState}
-                      size={KNOB_SIZE_SECONDARY}
-                      labelBottom={false}
-                      thumb="secondary"
-                      scale={gainDbScale}
-                      defaultValue={0.5}
-                      help={HELP.blockIn}
-                    />
-                  </div>
-                )}
-
-                {/* Center: image + tone info on top, model picker spanning full width.
-                  Info view keeps image + meta and drops the picker / knobs. */}
-                <div
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    alignSelf: 'stretch',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: showInfo ? 'flex-start' : 'space-between',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'row',
-                      alignItems: showInfo ? 'flex-start' : 'center',
-                      gap: '24rem',
-                      minWidth: 0,
-                    }}
-                  >
-                    {/* Tone image (gear glyph fallback, like the web's ToneCard) */}
-                    <div
-                      style={{
-                        position: 'relative',
-                        width: rem(showInfo ? IMAGE_SIZE_INFO : IMAGE_SIZE),
-                        height: rem(showInfo ? IMAGE_SIZE_INFO : IMAGE_SIZE),
-                        borderRadius: '8rem',
-                        overflow: 'hidden',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <div
-                        style={{
-                          opacity: modelBusy || block.loadFailed ? 0.35 : 1,
-                          transition: 'opacity 0.2s ease',
-                          width: '100%',
-                          height: '100%',
-                        }}
-                      >
-                        <ToneImage
-                          src={tone.images?.[0]}
-                          alt={tone.title}
-                          gear={tone.gear}
-                          local={tone.local}
-                          boxSize={showInfo ? IMAGE_SIZE_INFO : IMAGE_SIZE}
-                        />
-                      </div>
-                      {(modelBusy || block.loadFailed) && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          {block.loadFailed ? (
-                            <RetryLoadBadge onRetry={() => actions.retryLoad(blockId)} />
-                          ) : (
-                            <LoadingDots />
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Tone info: title / gear+badge / counts / creator (Figma gaps).
-                      Info view appends description / makes / tags under this. */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: showInfo ? '24rem' : '16rem',
-                        minWidth: 0,
-                        flex: 1,
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '16rem',
-                          minWidth: 0,
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8rem',
-                            minWidth: 0,
-                          }}
-                        >
-                          <span
-                            style={{
-                              fontSize: '18rem',
-                              color: WHITE,
-                              fontWeight: 700,
-                              lineHeight: 1.4,
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            {tone.title}
-                          </span>
-
-                          <div
-                            style={{
-                              display: 'flex',
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: '16rem',
-                            }}
-                          >
-                            {tone.gear && (
-                              <span style={{ fontSize: '14rem', color: MUTED, fontWeight: 400 }}>
-                                {gearLabel(tone.gear)}
-                              </span>
-                            )}
-                            {formatBadge && <FormatBadge label={formatBadge} a2={isNam} />}
-                          </div>
-                        </div>
-
-                        {!isLocal && (
-                          <div
-                            style={{
-                              display: 'flex',
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: '24rem',
-                            }}
-                          >
-                            <CountStat
-                              icon={<Download size={16} />}
-                              value={tone.downloads_count ?? 0}
-                            />
-                            <BookmarkStat
-                              value={favoritesCount}
-                              favorited={favorited}
-                              onToggle={
-                                actions.authenticated
-                                  ? () => void handleToggleFavorite()
-                                  : undefined
-                              }
-                            />
-                            <CountStat icon={<FolderClosed size={16} />} value={modelsTotal ?? 0} />
-                          </div>
-                        )}
-
-                        {tone.user && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12rem' }}>
-                            <div
-                              style={{
-                                width: '32rem',
-                                height: '32rem',
-                                borderRadius: '50%',
-                                overflow: 'hidden',
-                                flexShrink: 0,
-                              }}
-                            >
-                              <AvatarImage
-                                src={tone.user.avatar_url}
-                                alt={tone.user.username}
-                                size={32}
-                              />
-                            </div>
-                            <span style={{ fontSize: '14rem', color: GRAY, fontWeight: 400 }}>
-                              {tone.user.username}
-                              {tone.published_at && (
-                                <span style={{ color: MUTED }}>
-                                  {' '}
-                                  · {timeAgoShort(tone.published_at)}
-                                </span>
-                              )}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {showInfo && (
-                        <BlockInfoPanel
-                          loading={infoLoading}
-                          error={infoError}
-                          onRetry={() => void fetchInfo(tone.id)}
-                          authenticated={actions.authenticated}
-                          onLogin={actions.login}
-                          tone={infoTone}
-                          pageUrl={tonePageUrl}
-                        />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Switching catalog models re-downloads through native with
-                  a Bearer token, so the picker is inert while signed out.
-                  The wrapper carries the cursor + hint, as the select itself
-                  is pointer-events: none when disabled. Local switches read
-                  the stash: no auth, and the picker always shows (the
-                  dropped file names are the block's provenance). */}
-                  {!showInfo && (
+                    {/* Switching catalog models re-downloads through native with
+                a Bearer token, so the picker is inert while signed out.
+                The wrapper carries the cursor + hint, as the select itself
+                is pointer-events: none when disabled. Local switches read
+                the stash: no auth, and the picker always shows (the
+                dropped file names are the block's provenance). */}
                     <div
                       {...(!isLocal && !actions.authenticated
                         ? helpProps(HELP.modelSelectSignedOut)
@@ -1063,128 +908,284 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
                         value={String(block.activeModelId)}
                         onChange={handleModelSelect}
                         onOpen={handleModelsOpen}
-                        height={36}
+                        height={44}
                         disabled={!isLocal && !actions.authenticated}
                         loading={modelsLoading}
                         totalCount={isLocal ? tone.models.length : modelsTotal}
                       />
                     </div>
-                  )}
-                </div>
-
-                {/* Mix knob: bottom aligned, between the model select and the output rail */}
-                {!showInfo && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'flex-end',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <KnobControl
-                      label="Mix"
-                      value={mix}
-                      onChange={(val) => {
-                        setMix(val);
-                        setParam('mix', val);
-                      }}
-                      onDragStateChange={handleKnobDragState}
-                      size={KNOB_SIZE_SECONDARY}
-                      labelBottom={false}
-                      thumb="secondary"
-                      defaultValue={defaultMix}
-                      help={HELP.blockMix}
-                    />
-                  </div>
-                )}
-
-                {/* Output rail: meter above Out (+ optional normalize). The rail
-                right-aligns and the meter wrapper is knob-wide, so the meter
-                stays centered over the Out knob whether or not the normalize
-                button widens the bottom row to its left. */}
-                {!showInfo && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-end',
-                      flexShrink: 0,
-                      gap: '12rem',
-                    }}
-                  >
                     <div
+                      className={GLASS_CLEAR_CLASS}
                       style={{
                         flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
                         minHeight: 0,
-                        width: `${KNOB_SIZE_SECONDARY}rem`,
-                      }}
-                    >
-                      <BlockMeter meterId={meterId.blockOut(blockId)} length={RAIL_METER_HEIGHT} />
-                    </div>
-                    <div
-                      style={{
+                        borderRadius: `${RADIUS_PANEL}rem`,
                         display: 'flex',
                         flexDirection: 'row',
                         alignItems: 'flex-end',
-                        gap: '10rem',
+                        justifyContent: 'space-around',
+                        padding: '12rem 8rem 10rem',
+                        boxSizing: 'border-box',
                       }}
                     >
-                      {isNam && showNormalizeControl && (
-                        /* The wrapper carries the vertical nudge and the overridden
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '10rem',
+                        }}
+                      >
+                        <BlockMeter meterId={meterId.blockIn(blockId)} length={RAIL_METER_HEIGHT} />
+                        <KnobControl
+                          label="In"
+                          value={inputGain}
+                          onChange={(val) => {
+                            setInputGain(val);
+                            setParam('inputGain', val);
+                          }}
+                          onDragStateChange={handleKnobDragState}
+                          size={KNOB_SIZE_SECONDARY}
+                          thumb="secondary"
+                          scale={gainDbScale}
+                          defaultValue={0.5}
+                          help={HELP.blockIn}
+                        />
+                      </div>
+                      <KnobControl
+                        label="Mix"
+                        value={mix}
+                        onChange={(val) => {
+                          setMix(val);
+                          setParam('mix', val);
+                        }}
+                        onDragStateChange={handleKnobDragState}
+                        size={KNOB_SIZE_PRIMARY}
+                        defaultValue={defaultMix}
+                        help={HELP.blockMix}
+                      />
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '10rem',
+                        }}
+                      >
+                        <BlockMeter
+                          meterId={meterId.blockOut(blockId)}
+                          length={RAIL_METER_HEIGHT}
+                        />
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'row',
+                            alignItems: 'flex-end',
+                            gap: '6rem',
+                          }}
+                        >
+                          {isNam && showNormalizeControl && (
+                            /* The wrapper carries the vertical nudge and the overridden
                      hint: a disabled button swallows hover (no mouseover ever
                      fires), so pointer-events pass through it to this span
                      and the hint delegation resolves here instead. */
-                        <span
-                          {...helpProps(
-                            normalizeOverridden
-                              ? HELP.blockNormalizeOverridden
-                              : HELP.blockNormalize
+                            <span
+                              {...helpProps(
+                                normalizeOverridden
+                                  ? HELP.blockNormalizeOverridden
+                                  : HELP.blockNormalize
+                              )}
+                              style={{
+                                display: 'inline-flex',
+                                // Center the box on the Out knob's face, above its label.
+                                transform: `translateY(${faceplateChromeLift(KNOB_SIZE_SECONDARY)}rem)`,
+                                // The button below is pointer-events: none while
+                                // overridden, so the cursor reads from here.
+                                cursor: normalizeOverridden ? 'not-allowed' : undefined,
+                              }}
+                            >
+                              <ChromeIconButton
+                                tone="power"
+                                // Overridden reads as off (gray + fill) even if
+                                // the stored setting is on.
+                                on={normalizeOn && !normalizeOverridden}
+                                help={HELP.blockNormalize}
+                                onClick={handleToggleNormalize}
+                                disabled={normalizeOverridden}
+                                style={normalizeOverridden ? { pointerEvents: 'none' } : undefined}
+                              >
+                                <Equal size={ICON_SIZE} />
+                              </ChromeIconButton>
+                            </span>
                           )}
-                          style={{
-                            display: 'inline-flex',
-                            transform: `translateY(${NORMALIZE_BUTTON_OFFSET}rem)`,
-                            // The button below is pointer-events: none while
-                            // overridden, so the cursor reads from here.
-                            cursor: normalizeOverridden ? 'not-allowed' : undefined,
-                          }}
-                        >
-                          <ChromeIconButton
-                            tone="power"
-                            // Overridden reads as off (gray + fill) even if
-                            // the stored setting is on.
-                            on={normalizeOn && !normalizeOverridden}
-                            help={HELP.blockNormalize}
-                            onClick={handleToggleNormalize}
-                            disabled={normalizeOverridden}
-                            style={normalizeOverridden ? { pointerEvents: 'none' } : undefined}
-                          >
-                            <Equal size={ICON_SIZE} />
-                          </ChromeIconButton>
-                        </span>
-                      )}
-                      <KnobControl
-                        label="Out"
-                        value={outputGain}
-                        onChange={(val) => {
-                          setOutputGain(val);
-                          setParam('outputGain', val);
-                        }}
-                        onDragStateChange={handleKnobDragState}
-                        size={KNOB_SIZE_SECONDARY}
-                        labelBottom={false}
-                        thumb="secondary"
-                        scale={gainDbScale}
-                        defaultValue={0.5}
-                        help={isNam || block.irLong ? HELP.blockOut : HELP.blockOutIr}
-                      />
+                          <KnobControl
+                            label="Out"
+                            value={outputGain}
+                            onChange={(val) => {
+                              setOutputGain(val);
+                              setParam('outputGain', val);
+                            }}
+                            onDragStateChange={handleKnobDragState}
+                            size={KNOB_SIZE_SECONDARY}
+                            thumb="secondary"
+                            scale={gainDbScale}
+                            defaultValue={0.5}
+                            help={isNam || block.irLong ? HELP.blockOut : HELP.blockOutIr}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
+
+                {/* Right panel: artwork beside the tone's counts and creator.
+                  The info view appends description / makes / tags under them
+                  and lets the panel grow. */}
+                <div
+                  className={GLASS_CLEAR_CLASS}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    borderRadius: `${RADIUS_PANEL}rem`,
+                    padding: '14rem',
+                    boxSizing: 'border-box',
+                    display: 'flex',
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    gap: '16rem',
+                  }}
+                >
+                  {/* Tone image (gear glyph fallback, like the web's ToneCard) */}
+                  <div
+                    style={{
+                      position: 'relative',
+                      width: rem(showInfo ? IMAGE_SIZE_INFO : IMAGE_SIZE),
+                      height: rem(showInfo ? IMAGE_SIZE_INFO : IMAGE_SIZE),
+                      borderRadius: '12rem',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      backgroundColor: ARTWORK_BG,
+                      boxShadow: 'inset 0 0 0 1rem rgba(255, 255, 255, 0.12)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        opacity: modelBusy || block.loadFailed ? 0.35 : 1,
+                        transition: 'opacity 0.2s ease',
+                        width: '100%',
+                        height: '100%',
+                      }}
+                    >
+                      <ToneImage
+                        src={tone.images?.[0]}
+                        alt={tone.title}
+                        gear={tone.gear}
+                        local={tone.local}
+                        boxSize={showInfo ? IMAGE_SIZE_INFO : IMAGE_SIZE}
+                      />
+                    </div>
+                    {(modelBusy || block.loadFailed) && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {block.loadFailed ? (
+                          <RetryLoadBadge onRetry={() => actions.retryLoad(blockId)} />
+                        ) : (
+                          <LoadingDots />
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: showInfo ? '24rem' : '14rem',
+                      minWidth: 0,
+                      flex: 1,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '14rem',
+                        minWidth: 0,
+                      }}
+                    >
+                      {!isLocal && (
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: '24rem',
+                          }}
+                        >
+                          <CountStat
+                            icon={<Download size={16} />}
+                            value={tone.downloads_count ?? 0}
+                          />
+                          <BookmarkStat
+                            value={favoritesCount}
+                            favorited={favorited}
+                            onToggle={
+                              actions.authenticated ? () => void handleToggleFavorite() : undefined
+                            }
+                          />
+                          <CountStat icon={<FolderClosed size={16} />} value={modelsTotal ?? 0} />
+                        </div>
+                      )}
+
+                      {tone.user && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12rem' }}>
+                          <div
+                            style={{
+                              width: '32rem',
+                              height: '32rem',
+                              borderRadius: '50%',
+                              overflow: 'hidden',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <AvatarImage
+                              src={tone.user.avatar_url}
+                              alt={tone.user.username}
+                              size={32}
+                            />
+                          </div>
+                          <span style={{ fontSize: '14rem', color: GRAY, fontWeight: 400 }}>
+                            {tone.user.username}
+                            {tone.published_at && (
+                              <span style={{ color: MUTED }}>
+                                {' '}
+                                · {timeAgoShort(tone.published_at)}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    {showInfo && (
+                      <BlockInfoPanel
+                        loading={infoLoading}
+                        error={infoError}
+                        onRetry={() => void fetchInfo(tone.id)}
+                        authenticated={actions.authenticated}
+                        onLogin={actions.login}
+                        tone={infoTone}
+                        pageUrl={tonePageUrl}
+                      />
+                    )}
+                  </div>
+                </div>
               </>
             )}
             {showInfo && infoLoading && <BusyOverlay align="center" />}
