@@ -26,11 +26,11 @@ import {
   BLACK,
   BRAND_RED,
   DISABLED_OPACITY,
-  FONT_MONO,
-  GLASS_BLUR,
   GLASS_BORDER,
+  GLASS_CLASS,
   GLASS_CLEAR_CLASS,
   MUTED,
+  RADIUS_SHEET,
   WHITE,
   filledPillButtonStyle,
   glassStyle,
@@ -140,9 +140,9 @@ const browseButtonStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: '10rem',
-  height: '40rem',
-  padding: '0 22rem',
-  fontSize: '15rem',
+  height: '34rem',
+  padding: '0 18rem',
+  fontSize: '14rem',
   flexShrink: 0,
 };
 
@@ -206,6 +206,8 @@ const GearFilterPill: React.FC<{
     past the column on each side and re-applies that as scroll padding, so at
     rest the first/last pill sits flush with the column edge (outside the
     fade) and only slides under the mask once actually scrolled. */
+/** Bottom fade of the sheet's scroll area. */
+const SCROLL_FADE_MASK = 'linear-gradient(to bottom, #000 calc(100% - 28rem), rgba(0, 0, 0, 0))';
 const GEAR_ROW_MASK = `linear-gradient(to right, rgba(0, 0, 0, 0), #000 ${EDGE_FADE_WIDTH}rem, #000 calc(100% - ${EDGE_FADE_WIDTH}rem), rgba(0, 0, 0, 0))`;
 const GearFilterRow: React.FC<{ active: string | null; onChange: (id: string | null) => void }> = ({
   active,
@@ -756,117 +758,87 @@ export const ToneBrowser: React.FC<ToneBrowserProps> = ({
   const showTrendingFooter = stream === 'trending' && !error && !loading;
 
   return (
+    // The browser is a glass sheet floating in the middle band: a fixed
+    // header (back, title, Browse, the stream picker and gear filters) over
+    // its own scroll area, so no scrim is needed to cover scrolled content.
     <div
-      ref={scrollRef}
-      className="hide-scrollbar"
+      className={GLASS_CLASS}
       style={{
         height: '100%',
-        overflowY: 'auto',
-        overflowX: 'hidden',
+        borderRadius: `${RADIUS_SHEET}rem`,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
         color: '#ffffff',
       }}
     >
-      {/* Header, pinned while the content scrolls beneath it. Matches the
-          expanded block card header (back arrow + hairline rule). The tabs
-          live in the pinned area too, so only the pills and results scroll
-          underneath. An inset black bar covers gear pills as they scroll
-          up; it's pulled in from the center-column edges so stereo VU
-          meters (which overflow their mono slot into this column) stay
-          visible. The inner div re-centers the 800px content column. */}
       <div
         style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 2,
+          flexShrink: 0,
+          padding: '14rem 16rem 0',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12rem',
         }}
       >
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            // Stereo meters overflow ~6px into this column; 12px clears
-            // them while still covering the 32px pill-row edge fade.
-            left: '12rem',
-            right: '12rem',
-            // Blurred tint of the ground rather than a black slab, so cards
-            // scrolling under the header read through it as through glass.
-            backgroundColor: 'rgba(5, 5, 6, 0.72)',
-            WebkitBackdropFilter: GLASS_BLUR,
-            backdropFilter: GLASS_BLUR,
-            pointerEvents: 'none',
-          }}
-        />
-        <div
-          style={{
-            position: 'relative',
-            maxWidth: `${COLUMN_MAX_WIDTH}rem`,
-            margin: '0 auto',
-            width: '100%',
-          }}
-        >
-          <div
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10rem' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            {...helpProps(HELP.closeToneBrowser)}
             style={{
               display: 'flex',
-              // Top-align with the band (Browse is taller); arrow + label stay
-              // centered on each other inside the back button.
-              alignItems: 'flex-start',
-              gap: '16rem',
-              // Top inset comes from Plugin's shared 24px middle-band pad.
-              // No side inset; flush with the 800px column like ← BLOCK.
-              padding: '0 0 16rem',
+              alignItems: 'center',
+              gap: '10rem',
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              padding: 0,
+              margin: 0,
+              cursor: 'pointer',
+              color: '#ffffff',
             }}
           >
-            <button
-              type="button"
-              onClick={onClose}
-              {...helpProps(HELP.closeToneBrowser)}
+            <span
+              className={GLASS_CLEAR_CLASS}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16rem',
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                padding: 0,
-                margin: 0,
-                cursor: 'pointer',
-                color: '#ffffff',
+                width: '32rem',
+                height: '32rem',
+                borderRadius: '50%',
+                display: 'grid',
+                placeItems: 'center',
               }}
             >
-              <ArrowLeft size={16} style={{ display: 'block', flexShrink: 0 }} />
-              <span
-                style={{
-                  fontFamily: FONT_MONO,
-                  fontSize: '16rem',
-                  fontWeight: 400,
-                  textTransform: 'uppercase',
-                  lineHeight: 1.4,
-                }}
-              >
-                Select Tone
-              </span>
-            </button>
-            <div style={{ flex: 1 }} />
-            <BrowseButton onClick={onBrowseTone3000} />
-          </div>
-          <StreamTabs active={stream} onChange={switchStream} />
+              <ArrowLeft size={15} style={{ display: 'block', flexShrink: 0 }} />
+            </span>
+            <span style={{ fontSize: '16rem', fontWeight: 600, lineHeight: 1.2 }}>Select Tone</span>
+          </button>
+          <div style={{ flex: 1 }} />
+          <BrowseButton onClick={onBrowseTone3000} />
         </div>
+        <StreamTabs active={stream} onChange={switchStream} />
+        {!showSignInPrompt && (
+          <GearFilterRow active={gearFilter} onChange={handleGearFilterChange} />
+        )}
       </div>
 
-      {/* Scrolling content; 24px bottom pad so the paginator / last row
-          has air above the faceplate (Select fills the center column to
-          the faceplate; this pad lives in the scroll content, not the
-          shared meter band). */}
-      <div style={{ maxWidth: `${COLUMN_MAX_WIDTH}rem`, margin: '0 auto', width: '100%' }}>
-        <div style={{ padding: '20rem 0 24rem' }}>
-          {!showSignInPrompt && (
-            <GearFilterRow active={gearFilter} onChange={handleGearFilterChange} />
-          )}
-
+      {/* Scrolling content, fading out under the sheet's bottom edge. */}
+      <div
+        ref={scrollRef}
+        className="hide-scrollbar"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          padding: '12rem 16rem 16rem',
+          WebkitMaskImage: SCROLL_FADE_MASK,
+          maskImage: SCROLL_FADE_MASK,
+        }}
+      >
+        <div style={{ maxWidth: `${COLUMN_MAX_WIDTH}rem`, margin: '0 auto', width: '100%' }}>
           {pickError && (
-            <div style={{ marginTop: '16rem' }}>
+            <div style={{ marginBottom: '12rem' }}>
               <span style={{ fontSize: '12rem', fontWeight: 400, color: BRAND_RED }}>
                 {pickError}
               </span>
@@ -874,9 +846,7 @@ export const ToneBrowser: React.FC<ToneBrowserProps> = ({
           )}
 
           {/* Tone grid / empty state / sign-in prompt */}
-          <div style={{ marginTop: '24rem', marginBottom: showPaginator ? '16rem' : 0 }}>
-            {body}
-          </div>
+          <div style={{ marginBottom: showPaginator ? '16rem' : 0 }}>{body}</div>
 
           {showPaginator && (
             <div
@@ -893,7 +863,7 @@ export const ToneBrowser: React.FC<ToneBrowserProps> = ({
 
           {showTrendingFooter &&
             (authenticated ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '48rem 24rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '32rem 24rem' }}>
                 <BrowseButton onClick={onBrowseTone3000} />
               </div>
             ) : (

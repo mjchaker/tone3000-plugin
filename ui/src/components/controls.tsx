@@ -28,7 +28,8 @@ import {
 export const FIELD_BORDER = '1rem solid rgba(255, 255, 255, 0.10)';
 
 /** Vertical gap between top-level settings sections. */
-export const SECTION_GAP = 28;
+/** Gap between stacked settings panels. */
+export const SECTION_GAP = 14;
 
 export const outlinedFieldStyle: React.CSSProperties = {
   backgroundColor: SURFACE,
@@ -44,15 +45,55 @@ export const outlinedFieldStyle: React.CSSProperties = {
 // Only headers carry weight; everything else is regular (the app's global
 // stylesheet defaults heavier, so body copy sets 400 explicitly).
 export const sectionLabelStyle: React.CSSProperties = {
-  fontSize: '15rem',
+  fontSize: '13rem',
   fontWeight: 600,
   color: '#ffffff',
+  lineHeight: 1.3,
 };
 
+/** Eyebrow above a settings panel (INTERFACE, NAM A2 SIZE, ...). */
+export const eyebrowStyle: React.CSSProperties = {
+  display: 'block',
+  padding: '0 14rem',
+  marginBottom: '6rem',
+  fontSize: '10.5rem',
+  fontWeight: 600,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  color: MUTED,
+};
+
+/** Padding of one row inside a settings panel. */
+export const ROW_PADDING = '12rem 14rem';
+
 /**
- * Bordered settings card with an icon + uppercase title (e.g. AUDIO INTERFACE).
- * Children are stacked with a tighter internal gap; the card itself owns the
- * outer SECTION_GAP below.
+ * Eyebrow title over a clear-glass panel whose direct children are rows,
+ * separated by hairlines (index.css .settings-panel). The plugin tab's
+ * sections and MIDI list use this; SettingsGroup is the same panel with an
+ * icon in its eyebrow.
+ */
+export const SettingsPanel: React.FC<{
+  title?: string;
+  children: React.ReactNode;
+  role?: string;
+  ariaLabel?: string;
+  style?: React.CSSProperties;
+}> = ({ title, children, role, ariaLabel, style }) => (
+  <section role={role} aria-label={ariaLabel} style={style}>
+    {title && <span style={eyebrowStyle}>{title}</span>}
+    <div
+      className="settings-panel"
+      style={{ ...glassClearStyle, borderRadius: `${RADIUS_PANEL}rem`, overflow: 'hidden' }}
+    >
+      {children}
+    </div>
+  </section>
+);
+
+/**
+ * Settings panel with an icon + uppercase eyebrow (e.g. AUDIO INTERFACE).
+ * Children are rows separated by hairlines; the panel owns the outer
+ * SECTION_GAP below.
  */
 export const SettingsGroup: React.FC<{
   title: string;
@@ -60,61 +101,39 @@ export const SettingsGroup: React.FC<{
   children: React.ReactNode;
   style?: React.CSSProperties;
 }> = ({ title, icon, children, style }) => (
-  <section
-    style={{
-      ...glassClearStyle,
-      borderRadius: `${RADIUS_PANEL}rem`,
-      padding: '20rem',
-      marginBottom: `${SECTION_GAP}rem`,
-      boxSizing: 'border-box',
-      ...style,
-    }}
-  >
+  <section style={{ marginBottom: `${SECTION_GAP}rem`, ...style }}>
+    <span style={{ ...eyebrowStyle, display: 'flex', alignItems: 'center', gap: '8rem' }}>
+      <span style={{ display: 'flex', color: MUTED, flexShrink: 0 }}>{icon}</span>
+      {title}
+    </span>
     <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10rem',
-        marginBottom: '16rem',
-      }}
+      className="settings-panel"
+      style={{ ...glassClearStyle, borderRadius: `${RADIUS_PANEL}rem`, overflow: 'hidden' }}
     >
-      <span style={{ display: 'flex', color: '#ffffff', flexShrink: 0 }}>{icon}</span>
-      <span
-        style={{
-          fontSize: '16rem',
-          fontWeight: 600,
-          letterSpacing: 'normal',
-          color: '#ffffff',
-          textTransform: 'uppercase',
-        }}
-      >
-        {title}
-      </span>
+      {children}
     </div>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16rem' }}>{children}</div>
   </section>
 );
 
 export const descriptionStyle: React.CSSProperties = {
-  fontSize: '14rem',
+  fontSize: '11.5rem',
   fontWeight: 400,
   color: MUTED,
-  // 8rem from a plain section header to the first help line. ToggleRow
-  // overrides to 4rem: the pill already adds visual weight under the label.
-  margin: '8rem 0 0',
-  lineHeight: 1.45,
+  // 3rem from a row title to its help line.
+  margin: '3rem 0 0',
+  lineHeight: 1.35,
 };
 
 export const ctaButtonStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '12rem 16rem',
+  alignSelf: 'flex-start',
+  padding: '8rem 16rem',
+  fontSize: '12.5rem',
   borderRadius: '9999rem',
   border: '1rem solid rgba(255, 255, 255, 0.9)',
   background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(232, 232, 238, 0.94))',
   boxShadow: 'inset 0 1rem 0 rgba(255, 255, 255, 1), 0 10rem 28rem rgba(0, 0, 0, 0.45)',
   color: BLACK,
-  fontSize: '15rem',
-  fontWeight: 400,
+  fontWeight: 600,
   cursor: 'pointer',
   textAlign: 'center',
 };
@@ -210,13 +229,16 @@ export function SelectField<T extends string>({
         disabled={disabled}
         aria-label={ariaLabel}
         style={{
-          ...outlinedFieldStyle,
+          ...glassStyle,
+          borderRadius: '9999rem',
           width: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '10rem',
-          padding: '12rem 16rem',
+          padding: '7rem 14rem',
+          fontSize: '12.5rem',
+          fontWeight: 500,
           cursor: disabled ? 'not-allowed' : 'pointer',
           color: disabled || !selected ? MUTED : '#ffffff',
         }}
@@ -297,28 +319,29 @@ export function SelectField<T extends string>({
   );
 }
 
-/** Label + help + control: the repeating field shape of the settings tabs.
- *  Pass `flush` inside a SettingsGroup (the group owns vertical rhythm). */
+/** Label + help + control: the repeating row shape of the settings tabs.
+ *  Pass `flush` inside a panel (the panel separates rows with hairlines and
+ *  owns the outer gap); standalone rows keep a SECTION_GAP below. */
 export const FieldRow: React.FC<{
   label: string;
   help?: React.ReactNode;
   labelExtra?: React.ReactNode;
   children: React.ReactNode;
-  /** Drop the outer bottom margin (SettingsGroup stacks with gap instead). */
+  /** Drop the outer bottom margin (the panel stacks rows instead). */
   flush?: boolean;
 }> = ({ label, help, labelExtra, children, flush = false }) => (
-  <div style={{ marginBottom: flush ? 0 : `${SECTION_GAP}rem` }}>
+  <div style={{ padding: ROW_PADDING, marginBottom: flush ? 0 : `${SECTION_GAP}rem` }}>
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <span style={sectionLabelStyle}>{label}</span>
       {labelExtra}
     </div>
-    {help && <p style={{ ...descriptionStyle, marginBottom: '16rem' }}>{help}</p>}
-    {!help && <div style={{ height: '16rem' }} />}
-    {children}
+    {help && <p style={descriptionStyle}>{help}</p>}
+    <div style={{ marginTop: '10rem' }}>{children}</div>
   </div>
 );
 
-/** Section label with a pill toggle on the right, description underneath. */
+/** Row: title + description on the left, switch on the right; expanded
+    controls / tips render under the description. */
 export const ToggleRow: React.FC<{
   label: string;
   description: React.ReactNode;
@@ -327,7 +350,7 @@ export const ToggleRow: React.FC<{
   children?: React.ReactNode;
   flush?: boolean;
 }> = ({ label, description, value, onChange, children, flush = false }) => (
-  <div style={{ marginBottom: flush ? 0 : `${SECTION_GAP}rem` }}>
+  <div style={{ padding: ROW_PADDING, marginBottom: flush ? 0 : `${SECTION_GAP}rem` }}>
     <div
       style={{
         display: 'flex',
@@ -336,12 +359,14 @@ export const ToggleRow: React.FC<{
         gap: '16rem',
       }}
     >
-      <span style={sectionLabelStyle}>{label}</span>
+      <div style={{ minWidth: 0 }}>
+        <span style={sectionLabelStyle}>{label}</span>
+        <p style={descriptionStyle}>{description}</p>
+      </div>
       <PillToggle value={value} onChange={onChange} />
     </div>
-    <p style={{ ...descriptionStyle, margin: '4rem 0 0' }}>{description}</p>
-    {/* 16rem between the help line and any expanded controls / tips. */}
-    {children ? <div style={{ marginTop: '16rem' }}>{children}</div> : null}
+    {/* 12rem between the row and any expanded controls / tips. */}
+    {children ? <div style={{ marginTop: '12rem' }}>{children}</div> : null}
   </div>
 );
 
@@ -382,7 +407,8 @@ export const ChoiceIndicator: React.FC<{ selected: boolean; square?: boolean }> 
   </span>
 );
 
-/** Radio row with label + description (NAM A2 Size options etc). */
+/** Radio row: label + description on the left, the indicator on the right
+    (NAM A2 Size options etc). */
 export const RadioOption: React.FC<{
   selected: boolean;
   label: string;
@@ -398,10 +424,11 @@ export const RadioOption: React.FC<{
       onClick={onSelect}
       style={{
         display: 'flex',
-        alignItems: 'flex-start',
-        gap: '12rem',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '16rem',
         width: '100%',
-        padding: 0,
+        padding: ROW_PADDING,
         border: 'none',
         background: 'transparent',
         cursor: 'pointer',
@@ -409,33 +436,12 @@ export const RadioOption: React.FC<{
         color: 'inherit',
       }}
     >
-      <span style={{ marginTop: '1rem', display: 'flex' }}>
-        <ChoiceIndicator selected={selected} />
-      </span>
       <span style={{ minWidth: 0, flex: 1 }}>
-        <span
-          style={{
-            display: 'block',
-            fontSize: '14rem',
-            fontWeight: 400,
-            color: '#ffffff',
-            lineHeight: 1.3,
-          }}
-        >
-          {label}
-        </span>
-        <span
-          style={{
-            display: 'block',
-            fontSize: '14rem',
-            fontWeight: 400,
-            color: MUTED,
-            marginTop: '4rem',
-            lineHeight: 1.45,
-          }}
-        >
-          {description}
-        </span>
+        <span style={{ ...sectionLabelStyle, display: 'block' }}>{label}</span>
+        <span style={{ ...descriptionStyle, display: 'block' }}>{description}</span>
+      </span>
+      <span style={{ display: 'flex', flexShrink: 0 }}>
+        <ChoiceIndicator selected={selected} />
       </span>
     </button>
     {children}

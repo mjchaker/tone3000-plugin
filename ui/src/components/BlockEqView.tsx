@@ -34,6 +34,8 @@ import {
   SUBTLE,
   TEXT_BOX_HEIGHT,
   GLASS_BORDER,
+  GLASS_CLEAR_CLASS,
+  RADIUS_PANEL,
   segmentedCellStyle,
   segmentedGroupStyle,
   uiOffClass,
@@ -418,10 +420,13 @@ export const BlockEqView: React.FC<BlockEqViewProps> = ({
   return (
     <div
       ref={containerRef}
+      className={GLASS_CLEAR_CLASS}
       style={{
         flex: 1,
         minHeight: 0,
         position: 'relative',
+        borderRadius: `${RADIUS_PANEL}rem`,
+        overflow: 'hidden',
         // The card's glass shows through; a dark tint keeps the curve and
         // spectrum legible without painting an opaque well.
         backgroundColor: 'rgba(0, 0, 0, 0.28)',

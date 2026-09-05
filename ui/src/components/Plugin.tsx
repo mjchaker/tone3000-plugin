@@ -508,12 +508,11 @@ export const Plugin: React.FC = () => {
                 minHeight: 0,
                 minWidth: 0,
                 boxSizing: 'border-box',
-                // Shared 24px under the header; 24px above the faceplate only
-                // for chain/BLOCK. Select fills to the faceplate; block-info
-                // fills to both header and faceplate, putting those pads
-                // inside the scroll content instead.
+                // Shared 24px under the header and above the dock for the
+                // chain, BLOCK and the Select Tone sheet; block-info fills to
+                // both, putting those pads inside the scroll content instead.
                 paddingTop: fillToFaceplate ? 0 : 24,
-                paddingBottom: showToneBrowser || fillToFaceplate ? 0 : 24,
+                paddingBottom: fillToFaceplate ? 0 : 24,
               }}
             >
               {showToneBrowser ? (
