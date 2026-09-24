@@ -1600,11 +1600,6 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
     }
   }
 
-  // A NaN/Inf from the host or an upstream plugin stops here, before the
-  // gate, the boundary and the oversampler (see zeroNonFinite).
-  for (int ch = 0; ch < numChannels; ++ch)
-    zeroNonFinite(buffer.getWritePointer(ch), numSamples);
-
   // #########################
   // Input gain + noise gate
   // #########################
@@ -1749,12 +1744,14 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
       else
         processOversampledChainStage(channels, channels, sliceLen);
 
-      // The input is already finite, so a NaN/Inf here was made inside the
-      // chain (a model blowing up). Never hand it to the host or the
-      // post-chain stages, and clear the chain's own recursive state
-      // (oversampler allpasses, block EQs) so the chain recovers once its
-      // FIR stages (NAM receptive field, IR length, boundary kernel) have
-      // flushed the bad sample.
+      // A NaN/Inf here came from the host or an upstream plugin, or was made
+      // inside the chain (a model blowing up). Never hand it to the
+      // post-chain stages or the host, and clear the chain's own recursive
+      // state (oversampler allpasses, block EQs) so the chain recovers once
+      // its FIR stages (boundary kernel, NAM receptive field, IR length)
+      // have flushed the bad sample. The stages ahead of the chain need no
+      // check of their own: the gate's envelope recovers by itself, and
+      // the tuner reads through a ring buffer.
       // `|`, not `||`: both channels must be cleaned.
       const bool chainBlewUp =
           zeroNonFinite(channels[0], sliceLen) | zeroNonFinite(channels[1], sliceLen);

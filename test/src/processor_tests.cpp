@@ -312,10 +312,9 @@ TEST(ProcessorTest, IgnoresGarbageLegacyAndNewerSchemaState) {
 }
 
 // One NaN or Inf from the host or an upstream plugin must not reach the
-// output. Before the input was sanitized it did in every case here, and
-// with oversampling on the allpasses held it: NaN, then silence, for the
-// rest of the session. Every output sample must stay finite, and the
-// signal must come back.
+// output. Unchecked it did in every case here, and with oversampling on
+// the allpasses held it: NaN, then silence, for the rest of the session.
+// Every output sample must stay finite, and the signal must come back.
 TEST(ProcessorTest, NonFiniteInputNeverReachesTheOutput) {
   struct Case {
     double hostRate;
