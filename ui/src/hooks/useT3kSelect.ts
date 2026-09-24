@@ -14,8 +14,10 @@ import {
 import type { Model, Tone } from '../types/tone';
 
 interface UseT3kSelectOptions {
-  /** Called when a selection has been resolved into a Tone (with embedded models). */
-  onToneSelected?: (tone: Tone & { models: Model[] }, accessToken: string) => void;
+  /** Called when a selection has been resolved into a Tone (with embedded
+      models). Awaited: a rejection reaches the caller (the browser card's
+      error, or the OAuth error overlay). */
+  onToneSelected?: (tone: Tone & { models: Model[] }, accessToken: string) => void | Promise<void>;
   /** Called whenever a fresh access token is available (initial + refresh). */
   onAccessTokenUpdated?: (accessToken: string) => void;
   /**
@@ -227,7 +229,7 @@ export const useT3kSelect = ({
         client.setTokens(result.tokens);
         if (result.toneId) {
           const tone = await fetchToneAndModels(result.toneId);
-          onToneSelected?.(tone, result.tokens.access_token);
+          await onToneSelected?.(tone, result.tokens.access_token);
         } else if (wantsBrowser) {
           // Login finished (or Select was closed after sign-in) on the way
           // to browsing tones, so open the tone browser.
@@ -313,7 +315,9 @@ export const useT3kSelect = ({
         fetchToneAndModels(toneId),
         client.getAccessToken(),
       ]);
-      onToneSelected?.(tone, accessToken);
+      // Awaited so the picking card hears about a failed load; unawaited,
+      // this resolved at once and the card spun forever when the load bailed.
+      await onToneSelected?.(tone, accessToken);
     },
     [client, fetchToneAndModels, onToneSelected]
   );
