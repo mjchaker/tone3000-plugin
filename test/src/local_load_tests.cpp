@@ -12,6 +12,11 @@
 #include "chain_test_helpers.h"
 
 #include <gtest/gtest.h>
+#include <juce_audio_formats/juce_audio_formats.h>
+
+#include <cmath>
+#include <limits>
+#include <memory>
 
 namespace {
 
@@ -384,4 +389,55 @@ TEST(LocalLoadTest, RetryRefetchesAfterABadDownload) {
         << "retry reused the cached bad bytes";
   }
   dir.deleteRecursively();
+}
+
+// A NaN/Inf made inside the chain must never reach the host. Here an amp
+// whose weights are scaled far past float range (a blown-up capture) emits
+// NaN on every block; the output must stay finite while it plays, and the
+// dry signal must come back once the block is removed.
+TEST(LocalLoadTest, BlownUpModelNeverMakesTheOutputNonFinite) {
+  juce::MemoryBlock raw;
+  ASSERT_TRUE(testFile("a2-amp-test.nam").loadFileAsData(raw));
+  juce::var model = juce::JSON::parse(raw.toString());
+  // A2 captures are slimmable containers: the weights live per submodel.
+  const auto* submodels = model["config"]["submodels"].getArray();
+  ASSERT_NE(submodels, nullptr);
+  for (const auto& sub : *submodels) {
+    auto* weights = sub["model"]["weights"].getArray();
+    ASSERT_NE(weights, nullptr);
+    for (auto& w : *weights)
+      w = static_cast<double>(w) * 1e10;
+  }
+  const juce::String json = juce::JSON::toString(model, true);
+
+  TONE3000Processor proc;
+  proc.setPlayConfigDetails(2, 2, kFs, 512);
+  proc.prepareToPlay(kFs, 512);
+  const juce::var res = proc.loadLocalTone(
+      "blown-up",
+      filesOf({fileEntry("blown-up.nam",
+                         juce::Base64::toBase64(json.toRawUTF8(), json.getNumBytesAsUTF8()))}));
+  ASSERT_TRUE(res["error"].isVoid()) << res["error"].toString().toStdString();
+  ASSERT_TRUE(waitForChainLoaded(proc));
+
+  const auto expectFinite = [](const std::vector<float>& l, const std::vector<float>& r) {
+    for (size_t i = 0; i < l.size(); ++i)
+      if (!std::isfinite(l[i]) || !std::isfinite(r[i]))
+        return ::testing::AssertionFailure() << "non-finite output at sample " << i;
+    return ::testing::AssertionSuccess();
+  };
+  const auto in = makeSine(48000, 220.0, 0.25f);
+  {
+    const auto [outL, outR] = processStereo(proc, in);
+    EXPECT_TRUE(expectFinite(outL, outR)) << "while the amp is blown up";
+  }
+
+  letAudioGoIdle();
+  ASSERT_TRUE(proc.removeChainBlock(res["blockId"].toString().toStdString()));
+  const auto [outL, outR] = processStereo(proc, in);
+  EXPECT_TRUE(expectFinite(outL, outR)) << "after the amp was removed";
+  float peak = 0.0f;
+  for (size_t i = outL.size() / 2; i < outL.size(); ++i)
+    peak = std::max(peak, std::abs(outL[i]));
+  EXPECT_GT(peak, 0.01f) << "the dry signal never came back";
 }

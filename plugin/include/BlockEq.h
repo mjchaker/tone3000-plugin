@@ -88,6 +88,13 @@ public:
 
   bool isActive() const { return enabled && anyBandActive; }
 
+  /** Audio thread (under chainMutex). Clears filter history only; the band
+      settings and coefficients stay. RT-safe. */
+  void resetState() noexcept {
+    for (auto& f : filters)
+      f.resetState();
+  }
+
   /** Audio thread (under chainMutex). Processes up to 2 channels in place.
       Only call when isActive(). */
   void process(juce::AudioBuffer<float>& buffer);

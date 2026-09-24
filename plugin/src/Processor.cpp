@@ -6,6 +6,8 @@
 #include <random>
 #include <cstring>
 #include <tuple>
+#include <bit>
+#include <cstdint>
 
 // StandalonePluginHolder: used to inspect the audio device's active channels
 // so we can detect a mono input or output (see standaloneMonoInput /
@@ -13,6 +15,24 @@
 #if !HEADLESS && JucePlugin_Build_Standalone && ! JUCE_USE_CUSTOM_PLUGIN_STANDALONE_APP
 #include <juce_audio_plugin_client/Standalone/juce_StandaloneFilterWindow.h>
 #endif
+
+namespace {
+// Replaces NaN/Inf samples with 0; returns whether any were found. Recursive
+// stages feed a non-finite sample back into their own state: through the
+// oversampler's allpasses one NaN from the host turned the output to NaN
+// and then silence for the rest of the session. Tests the exponent bits
+// rather than std::isfinite, which -ffinite-math-only would compile away.
+bool zeroNonFinite(float* samples, int numSamples) noexcept {
+  bool found = false;
+  for (int i = 0; i < numSamples; ++i) {
+    if ((std::bit_cast<std::uint32_t>(samples[i]) & 0x7f800000u) == 0x7f800000u) {
+      samples[i] = 0.0f;
+      found = true;
+    }
+  }
+  return found;
+}
+}  // namespace
 
 // ##############
 // MAIN PROCESSOR
@@ -1580,6 +1600,11 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
     }
   }
 
+  // A NaN/Inf from the host or an upstream plugin stops here, before the
+  // gate, the boundary and the oversampler (see zeroNonFinite).
+  for (int ch = 0; ch < numChannels; ++ch)
+    zeroNonFinite(buffer.getWritePointer(ch), numSamples);
+
   // #########################
   // Input gain + noise gate
   // #########################
@@ -1723,6 +1748,22 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
         chainBoundary->ProcessBlock(channels, channels, sliceLen, chainStageFunc);
       else
         processOversampledChainStage(channels, channels, sliceLen);
+
+      // The input is already finite, so a NaN/Inf here was made inside the
+      // chain (a model blowing up). Never hand it to the host or the
+      // post-chain stages, and clear the chain's own recursive state
+      // (oversampler allpasses, block EQs) so the chain recovers once its
+      // FIR stages (NAM receptive field, IR length, boundary kernel) have
+      // flushed the bad sample.
+      // `|`, not `||`: both channels must be cleaned.
+      const bool chainBlewUp =
+          zeroNonFinite(channels[0], sliceLen) | zeroNonFinite(channels[1], sliceLen);
+      if (chainBlewUp) {
+        chainOversampler.reset();
+        for (auto& l : lanes)
+          for (auto& block : l)
+            block->eq.resetState();
+      }
 
       // Image stage per slice: on a mono host buffer the scratch channel
       // only holds the Right lane's output for this slice, so it must be
