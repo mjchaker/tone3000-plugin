@@ -286,6 +286,12 @@ std::string TONE3000Processor::loadTone(const juce::String& toneJsonString,
   // which is only known after download; the first successful apply sets it
   // (see applyPreparedModelToChainBlock).
   block->applyDefaultMixOnLoad = true;
+  // prepareChain only covers blocks that existed at prepareToPlay. Without
+  // this the EQ and analyzer keep their 48 kHz defaults, and under x8
+  // oversampling a bell dialed at 1 kHz lands at 8 kHz. (Duplicate, paste
+  // and undo get the same via applyBlockSettings.)
+  block->eq.prepare(chainSampleRate());
+  block->spectrum.prepare(chainSampleRate());
 
   DBG("Created tone block: " << parsed.toneId << " (block: " << blockId << ")");
   DBG("Queueing first model for background loading: " << parsed.modelName);

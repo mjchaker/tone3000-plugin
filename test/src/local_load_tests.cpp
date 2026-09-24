@@ -251,3 +251,38 @@ TEST(LocalLoadTest, PathRejectsBadInputs) {
   EXPECT_TRUE(firstToneBlock(proc).isVoid());
   dir.deleteRecursively();
 }
+
+// A freshly loaded block's EQ must run at the chain rate, not the 48 kHz
+// default. Blocks added mid-session are never seen by prepareChain; before
+// the fix a +12 dB bell dialed at 1 kHz under 8x oversampling landed at
+// 8 kHz, so the audio stopped matching the drawn curve. Measured
+// differentially (bell on vs. flat) so the linear cab IR drops out.
+TEST(LocalLoadTest, NewBlockEqRunsAtOversampledChainRate) {
+  TONE3000Processor proc;
+  proc.setPlayConfigDetails(2, 2, kFs, 512);
+  proc.parameters.getParameter("osEnabled")->setValueNotifyingHost(1.0f);
+  proc.parameters.getParameter("osFactor")->setValueNotifyingHost(1.0f);  // index 2 = 8x
+  proc.prepareToPlay(kFs, 512);
+
+  const juce::var res =
+      proc.loadLocalTone("cab-ir-test", filesOf({testFileEntry("cab-ir-test.wav")}));
+  const std::string blockId = res["blockId"].toString().toStdString();
+  ASSERT_FALSE(blockId.empty());
+  ASSERT_TRUE(waitForChainLoaded(proc));
+
+  const auto levelDbAt = [&](double freq, double bellGainDb) {
+    auto* band = new juce::DynamicObject();
+    band->setProperty("type", "bell");
+    band->setProperty("freqHz", 1000.0);
+    band->setProperty("gainDb", bellGainDb);
+    band->setProperty("q", 4.0);
+    letAudioGoIdle();
+    EXPECT_TRUE(proc.setBlockEqBand(blockId, 2, juce::var(band)));
+    const auto [outL, outR] = processStereo(proc, makeSine(3 * 48000, freq, 0.25f));
+    // Last second only: fades, smoothers and the filter have settled.
+    return db(goertzelPower(outL.data() + 2 * 48000, 48000, freq));
+  };
+
+  EXPECT_NEAR(levelDbAt(1000.0, 12.0) - levelDbAt(1000.0, 0.0), 12.0, 0.25);
+  EXPECT_NEAR(levelDbAt(8000.0, 12.0) - levelDbAt(8000.0, 0.0), 0.0, 0.25);
+}
