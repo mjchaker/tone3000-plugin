@@ -57,7 +57,13 @@ if (NOT HEADLESS)
 else()
     set(JUCE_WEB_BROWSER_VALUE 0)               # No Webview UI for Embedded
     set(NEEDS_WEB_BROWSER_VALUE FALSE)          # disable, need browser for webview on linux
-    find_package(JUCE CONFIG REQUIRED)          # maybe remove?
+    # The root CMakeLists already added JUCE through CPM; an unconditional
+    # find_package would demand an installed JUCE and fail the documented
+    # -DHEADLESS=ON configure. Only a standalone configure of this
+    # directory needs to look for one.
+    if (NOT COMMAND juce_add_plugin)
+        find_package(JUCE CONFIG REQUIRED)
+    endif()
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF) # Disable LTO
     set(VST3_MANIFEST FALSE)                    # Maybe remove?
     add_compile_definitions(HEADLESS=1)
