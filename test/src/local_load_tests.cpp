@@ -319,3 +319,69 @@ TEST(LocalLoadTest, JunkInputLevelMetadataIsIgnoredByCalibration) {
   EXPECT_GT(peak, 1e-4f) << "the amp should still pass signal";
   EXPECT_LT(peak, 16.0f);
 }
+
+namespace {
+
+// Polls the chain state until `blockId` settles (loaded or failed).
+juce::var waitForBlockSettled(TONE3000Processor& proc, const juce::String& blockId) {
+  const auto deadline = juce::Time::getMillisecondCounter() + 20000u;
+  while (juce::Time::getMillisecondCounter() < deadline) {
+    const juce::var state = proc.getChainState(-1);
+    if (const auto* lane = state["chain"].getArray())
+      for (const auto& item : *lane)
+        if (item["blockId"].toString() == blockId && !static_cast<bool>(item["modelLoading"]))
+          return item;
+    juce::Thread::sleep(10);
+  }
+  return {};
+}
+
+}  // namespace
+
+// A download that fails to prepare (an HTTP error page, a truncated body)
+// must not be cached as the model: Retry reads the cache first, so cached
+// junk made the block fail forever, and it rode into every later save.
+// Both load paths are covered: a fresh tone pick (loadTone) and a restore
+// or model switch (switchModelInBackground).
+TEST(LocalLoadTest, RetryRefetchesAfterABadDownload) {
+  const juce::File dir = juce::File::getSpecialLocation(juce::File::tempDirectory)
+                             .getChildFile("t3k-retry-" + juce::Uuid().toString());
+  ASSERT_TRUE(dir.createDirectory());
+  const juce::File model = dir.getChildFile("cab.wav");
+  const juce::String toneJson =
+      "{\"id\":7,\"title\":\"Retry IR\",\"format\":\"ir\",\"models\":[{\"id\":70,"
+      "\"name\":\"cab\",\"model_url\":\"" +
+      juce::URL(model).toString(false) + "\"}]}";
+
+  for (const bool viaRestore : {false, true}) {
+    SCOPED_TRACE(viaRestore ? "restore path" : "loadTone path");
+    ASSERT_TRUE(model.replaceWithText("<html>502 Bad Gateway</html>"));
+
+    ChainTestProcessor proc;
+    juce::String blockId;
+    if (viaRestore) {
+      juce::ValueTree block("ChainBlock");
+      block.setProperty("id", "blk-r", nullptr);
+      block.setProperty("type", "ir", nullptr);
+      block.setProperty("toneId", 7, nullptr);
+      block.setProperty("toneJson", toneJson, nullptr);
+      block.setProperty("activeModelId", 70, nullptr);
+      juce::ValueTree state("ChainSnapshot");
+      juce::ValueTree left("ChainBlocks");
+      left.appendChild(block, nullptr);
+      state.appendChild(left, nullptr);
+      proc.restoreFromTree(state);
+      blockId = "blk-r";
+    } else {
+      blockId = proc.loadTone(toneJson);
+    }
+    ASSERT_TRUE(blockId.isNotEmpty());
+    EXPECT_TRUE(static_cast<bool>(waitForBlockSettled(proc, blockId)["loadFailed"]));
+
+    ASSERT_TRUE(testFile("cab-ir-test.wav").copyFileTo(model));
+    ASSERT_TRUE(proc.retryModelLoad(blockId.toStdString()));
+    EXPECT_TRUE(static_cast<bool>(waitForBlockSettled(proc, blockId)["loaded"]))
+        << "retry reused the cached bad bytes";
+  }
+  dir.deleteRecursively();
+}

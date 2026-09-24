@@ -813,7 +813,6 @@ void TONE3000Processor::loadToneInBackground(const std::string& blockId, int fir
       return;
     }
 
-    block->modelCache[firstModelId] = modelData;
     namSlimSize = block->namSlimSize;
   }
 
@@ -835,6 +834,12 @@ void TONE3000Processor::loadToneInBackground(const std::string& blockId, int fir
       DBG("[Background] Block not found after prepare: " << blockId);
       return;
     }
+
+    // Cache only bytes that prepared: retry reads the cache first, so a
+    // cached error page or truncated body would fail every retry, and
+    // presets/project saves would embed it.
+    if (prepared.success)
+      block->modelCache[firstModelId] = modelData;
 
     if (block->activeModelId != firstModelId) {
       // Superseded by a newer switch/swap while this one loaded; that job
@@ -933,7 +938,9 @@ void TONE3000Processor::switchModelInBackground(const std::string& blockId, int 
       return;
     }
 
-    if (needsFetch) {
+    // Only bytes that prepared (see loadToneInBackground): cached junk
+    // would make every retry fail from the cache.
+    if (needsFetch && prepared.success) {
       block->modelCache[modelId] = modelData;
     }
 
