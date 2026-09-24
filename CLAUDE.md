@@ -53,9 +53,12 @@ npm run dev           # Vite at http://localhost:5173; layout/browsing only, no 
 ```
 
 `./script/validate-plugin.sh [FORMAT] [Debug]` runs pluginval (strictness 10),
-clap-validator, and lv2lint against built artefacts. CI (`.github/workflows/build.yml`)
-is `workflow_dispatch` only and does not run on PRs, so the PR template expects
-the DSP tests, `npm run lint && npm run build`, and validators to be run locally.
+clap-validator, and lv2lint against built artefacts. On every PR,
+`.github/workflows/checks.yml` runs the UI checks (lint, format, vitest, build)
+and the DSP suite against a headless Linux build (X11 dev headers needed, no
+GTK/WebKit). The signed multi-platform build (`build.yml`) stays
+`workflow_dispatch` only, so the editor/webview build, validators and host
+smoke tests remain local steps.
 
 The GoogleTest target compiles the processor sources straight from `plugin/src/`
 with `HEADLESS=1` (no editor or webview), links NAM whole-archive, and points
