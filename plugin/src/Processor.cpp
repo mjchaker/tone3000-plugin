@@ -855,15 +855,17 @@ void TONE3000Processor::updateEqCoefficients() {
   const float midDb = 3.0f * (cacheMidTone - 5.0f);
   const float trebleDb = 2.0f * (cacheTrebleTone - 5.0f);
 
-  *bassFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowShelf(
-      rate, clampBelowNyquist(rate, 150.0f), 0.707f,
-      juce::Decibels::decibelsToGain(bassDb));
-  *midFilter.state = *juce::dsp::IIR::Coefficients<float>::makePeakFilter(
-      rate, clampBelowNyquist(rate, 425.0f), midDb < 0.0f ? 1.5f : 0.7f,
-      juce::Decibels::decibelsToGain(midDb));
-  *trebleFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf(
-      rate, clampBelowNyquist(rate, 1800.0f), 0.707f,
-      juce::Decibels::decibelsToGain(trebleDb));
+  // Runs on the audio thread when a tone knob moves. The Coefficients::make*
+  // factories heap-allocate a new object per call; ArrayCoefficients returns
+  // the same numbers by value, and assigning them reuses the state's storage.
+  using Arrays = juce::dsp::IIR::ArrayCoefficients<float>;
+  *bassFilter.state = Arrays::makeLowShelf(rate, clampBelowNyquist(rate, 150.0f), 0.707f,
+                                           juce::Decibels::decibelsToGain(bassDb));
+  *midFilter.state =
+      Arrays::makePeakFilter(rate, clampBelowNyquist(rate, 425.0f), midDb < 0.0f ? 1.5f : 0.7f,
+                             juce::Decibels::decibelsToGain(midDb));
+  *trebleFilter.state = Arrays::makeHighShelf(rate, clampBelowNyquist(rate, 1800.0f), 0.707f,
+                                              juce::Decibels::decibelsToGain(trebleDb));
 }
 
 // ######################
