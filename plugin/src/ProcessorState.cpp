@@ -177,30 +177,38 @@ void TONE3000Processor::applyBlockSettings(ChainBlock& block, const juce::ValueT
   }
 }
 
-void TONE3000Processor::serializeChainToTree(
-    const std::vector<std::unique_ptr<ChainBlock>>& blocks, juce::ValueTree& chainState,
-    bool includeModelData) {
+void TONE3000Processor::serializeChainToTree(const std::vector<std::unique_ptr<ChainBlock>>& blocks,
+                                             juce::ValueTree& chainState,
+                                             std::vector<PendingModelCache>* pendingModels) {
   for (const auto& block : blocks) {
     juce::ValueTree blockState = serializeBlockSettings(*block);
 
-    if (includeModelData && block->type != ChainBlockType::INSERT) {
-      juce::ValueTree cacheState("ModelCache");
-      for (const auto& [modelId, modelData] : block->modelCache) {
-        juce::ValueTree cachedModel("CachedModel");
-        cachedModel.setProperty("modelId", modelId, nullptr);
-
-        // Raw bytes in a binary var. The ValueTree binary stream writes these
-        // verbatim, which matters because this can run with chainMutex held
-        // (~8 MB per heavy rig).
-        cachedModel.setProperty(
-            "data", juce::var(juce::MemoryBlock(modelData.data(), modelData.size())), nullptr);
-
-        cacheState.appendChild(cachedModel, nullptr);
-      }
-      blockState.appendChild(cacheState, nullptr);
-    }
+    // References only: copying the bytes here would run under chainMutex.
+    if (pendingModels != nullptr && block->type != ChainBlockType::INSERT)
+      pendingModels->push_back({blockState, block->modelCache});
 
     chainState.appendChild(blockState, nullptr);
+  }
+}
+
+void TONE3000Processor::embedModelCaches(const std::vector<PendingModelCache>& pendingModels) {
+  for (const auto& pending : pendingModels) {
+    juce::ValueTree cacheState("ModelCache");
+    for (const auto& [modelId, modelData] : pending.models) {
+      if (modelData == nullptr)
+        continue;
+      juce::ValueTree cachedModel("CachedModel");
+      cachedModel.setProperty("modelId", modelId, nullptr);
+      // Raw bytes in a binary var; the ValueTree binary stream writes these
+      // verbatim (tens of MB on a multi-model rig).
+      cachedModel.setProperty(
+          "data", juce::var(juce::MemoryBlock(modelData->data(), modelData->size())), nullptr);
+      cacheState.appendChild(cachedModel, nullptr);
+    }
+    // The node belongs to the caller's snapshot, not the live chain, so it
+    // can be finished off the lock.
+    juce::ValueTree blockState = pending.blockState;
+    blockState.appendChild(cacheState, nullptr);
   }
 }
 
@@ -219,14 +227,18 @@ void TONE3000Processor::getStateInformation(juce::MemoryBlock& destData) {
   state.setProperty("editorExtraHeight", editorExtraHeight.load(), nullptr);
   state.appendChild(midiMapper.toValueTree(), nullptr);
 
+  // The same ChainSnapshot tree that undo and presets use, with model bytes
+  // embedded so the project reopens offline. Only the settings and byte
+  // references are taken under chainMutex: hosts save and autosave with
+  // audio running, and the render thread blocks on this lock.
+  std::vector<PendingModelCache> pendingModels;
   {
     juce::ScopedLock lock(chainMutex);
     state.setProperty("activePresetId", activePresetId, nullptr);
     state.setProperty("activePresetName", activePresetName, nullptr);
-    // The same ChainSnapshot tree that undo and presets use, with model bytes
-    // embedded so the project reopens offline.
-    state.appendChild(captureChainSnapshot(true), nullptr);
+    state.appendChild(captureChainSnapshot(&pendingModels), nullptr);
   }
+  embedModelCaches(pendingModels);
 
   // Magic-prefixed binary ValueTree stream. I picked binary over XML so the
   // embedded model bytes go out verbatim; the old Base64-in-XML path burned

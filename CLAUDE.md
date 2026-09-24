@@ -126,7 +126,9 @@ Undo, redo, preset load, duplicate, paste, and DAW state restore all go through
 the same path: a settings-only `ValueTree` snapshot (tone JSON + params, never
 model bytes) is reconciled against the live lanes so blocks whose id/tone/model
 still match keep their loaded engines. Model bytes travel separately in a
-per-block cache; presets embed them so they load offline. Local files (drop or
+per-block cache; presets embed them so they load offline. Cache entries are
+immutable shared buffers: saves take references under `chainMutex` and copy the
+bytes only after releasing it, because the render thread blocks on that lock. Local files (drop or
 native picker) are wrapped in a synthetic tone JSON with `file://` model URLs and
 then ride the exact catalog pipeline; see `plugin/docs/local-models.md`.
 

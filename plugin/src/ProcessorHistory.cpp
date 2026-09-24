@@ -13,7 +13,8 @@
 // few property writes, while undoing a structural edit only reloads the
 // blocks that actually changed.
 
-juce::ValueTree TONE3000Processor::captureChainSnapshot(bool includeModelData) const {
+juce::ValueTree TONE3000Processor::captureChainSnapshot(
+    std::vector<PendingModelCache>* pendingModels) const {
   juce::ValueTree snapshot("ChainSnapshot");
   snapshot.setProperty("stereoEnabled", stereoEnabled.load(), nullptr);
   // Branch routing travels with the chains (undo, presets, DAW state all
@@ -23,11 +24,11 @@ juce::ValueTree TONE3000Processor::captureChainSnapshot(bool includeModelData) c
   snapshot.setProperty("branchAfterBlockId", juce::String(branchAfterBlockId), nullptr);
 
   juce::ValueTree left("ChainBlocks");
-  serializeChainToTree(lane(ChainSide::Left), left, includeModelData);
+  serializeChainToTree(lane(ChainSide::Left), left, pendingModels);
   snapshot.appendChild(left, nullptr);
 
   juce::ValueTree right("RightChainBlocks");
-  serializeChainToTree(lane(ChainSide::Right), right, includeModelData);
+  serializeChainToTree(lane(ChainSide::Right), right, pendingModels);
   snapshot.appendChild(right, nullptr);
 
   return snapshot;
@@ -152,7 +153,8 @@ void TONE3000Processor::reconcileChainFromTree(const juce::ValueTree& chainState
         const juce::var dataVar = cachedModel.getProperty("data");
         if (const auto* raw = dataVar.getBinaryData()) {
           const auto* bytes = static_cast<const uint8_t*>(raw->getData());
-          block->modelCache[modelId].assign(bytes, bytes + raw->getSize());
+          block->modelCache[modelId] =
+              std::make_shared<const std::vector<uint8_t>>(bytes, bytes + raw->getSize());
         } else {
           juce::Logger::writeToLog("[Restore] Embedded model bytes for model " +
                                    juce::String(modelId) + " missing (block " +

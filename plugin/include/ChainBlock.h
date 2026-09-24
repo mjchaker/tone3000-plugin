@@ -71,8 +71,12 @@ struct ChainBlock {
   juce::var toneVar;
   juce::var toneSummary;
 
-  // Model cache: stores downloaded model data by model ID
-  std::map<int, std::vector<uint8_t>> modelCache;
+  // Model cache: downloaded model bytes by model ID. Entries are immutable
+  // and shared (duplicate, the block clipboard and state saves hold the same
+  // buffers): a save takes these references under chainMutex and copies the
+  // megabytes only after releasing it. Replace an entry, never mutate one.
+  using ModelBytes = std::shared_ptr<const std::vector<uint8_t>>;
+  std::map<int, ModelBytes> modelCache;
 
   // State flags
   bool loaded;   // True when active model is loaded and ready

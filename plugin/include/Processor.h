@@ -653,14 +653,28 @@ private:
   // the full API payload (model URLs, tags, counts…) per block per sync is
   // waste.
   static juce::var makeToneSummary(const juce::var& toneVar);
+  // A block's settings node in a snapshot plus references to its cached
+  // model bytes, collected under chainMutex and embedded after it's released
+  // (see embedModelCaches).
+  struct PendingModelCache {
+    juce::ValueTree blockState;
+    std::map<int, ChainBlock::ModelBytes> models;
+  };
   static void serializeChainToTree(const std::vector<std::unique_ptr<ChainBlock>>& blocks,
-                                   juce::ValueTree& chainState, bool includeModelData);
+                                   juce::ValueTree& chainState,
+                                   std::vector<PendingModelCache>* pendingModels);
+  // Appends each pending block's ModelCache child (the byte copies). Call
+  // *without* chainMutex: this is the multi-MB part of a save, and the render
+  // thread blocks on that lock outside chain-edit fades.
+  static void embedModelCaches(const std::vector<PendingModelCache>& pendingModels);
 
   // Undo/redo internals (ProcessorHistory.cpp).
   // Snapshot both chains + stereo mode as a ValueTree. History snapshots stay
-  // settings-only; presets embed the model bytes so they load offline.
-  // Caller must hold chainMutex.
-  juce::ValueTree captureChainSnapshot(bool includeModelData = false) const;
+  // settings-only. Presets and DAW state embed the model bytes so they load
+  // offline: pass `pendingModels` to collect references to them, then call
+  // embedModelCaches after releasing the lock. Caller must hold chainMutex.
+  juce::ValueTree captureChainSnapshot(
+      std::vector<PendingModelCache>* pendingModels = nullptr) const;
   // Record the pre-mutation state before a chain edit. `coalesceKey` groups a
   // continuous gesture (knob/EQ drags) into a single undo step; pass an empty
   // string for discrete edits. Caller must hold chainMutex.
@@ -690,7 +704,7 @@ private:
   // like duplicate. Guarded by chainMutex; in-memory only (deliberately not
   // part of the DAW session state).
   juce::ValueTree blockClipboardSettings;
-  std::map<int, std::vector<uint8_t>> blockClipboardModelCache;
+  std::map<int, ChainBlock::ModelBytes> blockClipboardModelCache;
 
   // MIDI performance handlers (wired to midiMapper in the constructor,
   // both invoked on the message thread).

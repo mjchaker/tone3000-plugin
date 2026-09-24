@@ -59,10 +59,13 @@ juce::var TONE3000Processor::savePreset(const juce::String& rawName) {
   juce::ValueTree preset(PresetManager::kPresetTag);
   preset.setProperty("schemaVersion", 1, nullptr);
 
+  // Byte references under the lock, copies after it (see getStateInformation).
+  std::vector<PendingModelCache> pendingModels;
   {
     juce::ScopedLock lock(chainMutex);
-    preset.appendChild(captureChainSnapshot(true), nullptr);
+    preset.appendChild(captureChainSnapshot(&pendingModels), nullptr);
   }
+  embedModelCaches(pendingModels);
 
   // Values are stored denormalized (real dB/ratio units), so preset files
   // stay meaningful if a parameter's range is ever retuned.

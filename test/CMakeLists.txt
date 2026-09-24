@@ -30,6 +30,7 @@ target_sources(DspTests PRIVATE
     src/preset_tests.cpp
     src/processor_tests.cpp
     src/spread_tests.cpp
+    src/state_save_tests.cpp
     src/swap_fade_tests.cpp
     src/tone_refresh_tests.cpp
     src/tuner_tests.cpp
