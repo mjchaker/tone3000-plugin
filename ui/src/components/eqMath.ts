@@ -4,7 +4,9 @@ import { EQ_MAX_FREQ_HZ, EQ_MIN_FREQ_HZ, isEqBandActive } from '../types/chain';
 /**
  * Exact TypeScript mirror of the native biquad math (plugin/src/BlockEq.cpp,
  * RBJ Audio EQ Cookbook with A = 10^(dB/40)) so the drawn curve is the audio
- * truth, not an approximation. Keep both sides in sync.
+ * truth, not an approximation. Keep both sides in sync: both are pinned to
+ * test/files/eq_response_golden.json (eqMath.test.ts here, BlockEqGoldenTest
+ * natively).
  */
 
 interface BiquadCoeffs {
@@ -80,19 +82,28 @@ function computeCoeffs(band: EqBand, sampleRate: number): BiquadCoeffs {
   return { b0: b0 / a0, b1: b1 / a0, b2: b2 / a0, a1: a1 / a0, a2: a2 / a0 };
 }
 
-/** |H(e^jω)| in dB of a normalized biquad at a single frequency. */
+/**
+ * |H(e^jω)| in dB of a normalized biquad at a single frequency.
+ *
+ * Evaluates numerator and denominator as complex numbers rather than the
+ * expanded |H|² cosine polynomial. In the oversampled chain (up to 384 kHz)
+ * a low band's poles sit near z = 1, and the expanded form cancels terms of
+ * order 1 down to ~ω⁴ (1e-14 for 20 Hz at ×8): a 0.1 dB drawing error. The
+ * complex form only cancels down to ~ω², far inside double precision.
+ */
 function biquadMagnitudeDb(c: BiquadCoeffs, freqHz: number, sampleRate: number): number {
   const omega = (2 * Math.PI * freqHz) / sampleRate;
   const cosW = Math.cos(omega);
+  const sinW = Math.sin(omega);
   const cos2W = Math.cos(2 * omega);
-  const num =
-    c.b0 * c.b0 +
-    c.b1 * c.b1 +
-    c.b2 * c.b2 +
-    2 * (c.b0 * c.b1 + c.b1 * c.b2) * cosW +
-    2 * c.b0 * c.b2 * cos2W;
-  const den = 1 + c.a1 * c.a1 + c.a2 * c.a2 + 2 * (c.a1 + c.a1 * c.a2) * cosW + 2 * c.a2 * cos2W;
-  const magSq = num / Math.max(den, 1e-24);
+  const sin2W = Math.sin(2 * omega);
+  const numRe = c.b0 + c.b1 * cosW + c.b2 * cos2W;
+  const numIm = c.b1 * sinW + c.b2 * sin2W;
+  const denRe = 1 + c.a1 * cosW + c.a2 * cos2W;
+  const denIm = c.a1 * sinW + c.a2 * sin2W;
+  const num = numRe * numRe + numIm * numIm;
+  const den = denRe * denRe + denIm * denIm;
+  const magSq = num / Math.max(den, 1e-300);
   return 10 * Math.log10(Math.max(magSq, 1e-24));
 }
 

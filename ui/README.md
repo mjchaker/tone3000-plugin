@@ -17,6 +17,7 @@ npm install
 npm run dev        # Vite dev server at http://localhost:5173
 npm run build      # typecheck + build into ../plugin/webview
 npm run lint       # eslint
+npm test           # vitest: pure-logic unit tests (src/**/*.test.ts)
 npm run format     # prettier
 ```
 

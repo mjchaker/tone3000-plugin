@@ -46,6 +46,7 @@ ctest --test-dir build                      # gtest_discover_tests registers eve
 
 cd ui
 npm run lint          # eslint src
+npm test              # vitest run (src/**/*.test.ts, typechecked by tsconfig.test.json)
 npm run format        # prettier --write; format:check for CI-style check
 npm run build         # doubles as the typecheck (tsc -b)
 npm run dev           # Vite at http://localhost:5173; layout/browsing only, no native bridge
@@ -65,6 +66,12 @@ with `HEADLESS=1` (no editor or webview), links NAM whole-archive, and points
 `T3KB` state format, plus block-tree builders with embedded model bytes so no
 test touches the network). Behavior changes to DSP or chain logic are expected
 to update the pinning test in the same commit.
+
+The per-block EQ is drawn by `ui/src/components/eqMath.ts`, a TypeScript mirror of
+`BlockEq.cpp`. Both are pinned to `test/files/eq_response_golden.json`:
+`BlockEqGoldenTest` measures the real filter with sines at 1x to 8x chain rates,
+`eqMath.test.ts` evaluates the mirror. Change the math on both sides together and
+regenerate with `cd ui && UPDATE_EQ_GOLDEN=1 npm test`.
 
 ## Architecture
 

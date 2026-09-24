@@ -103,17 +103,24 @@ public:
   static BandType bandTypeFromString(const juce::String& s);
 
 private:
+  // Double coefficients and state. The EQ runs in the chain domain, up to
+  // 48 kHz x8 = 384 kHz, where a low band's poles crowd z = 1: rounding a1/a2
+  // to float moved a 20 Hz low cut by 2.5 dB there, so the audio stopped
+  // matching the curve eqMath.ts draws. A recursive per-sample filter can't
+  // vectorize anyway, so scalar double costs the same as float.
+  // BlockEqGoldenTest pins this at every oversampling rate.
   struct Biquad {
-    float b0{1.0f}, b1{0.0f}, b2{0.0f}, a1{0.0f}, a2{0.0f};  // normalized (a0 == 1)
-    float z1[2]{0.0f, 0.0f}, z2[2]{0.0f, 0.0f};              // TDF2 state per channel
+    double b0{1.0}, b1{0.0}, b2{0.0}, a1{0.0}, a2{0.0};  // normalized (a0 == 1)
+    double z1[2]{0.0, 0.0}, z2[2]{0.0, 0.0};             // TDF2 state per channel
 
-    inline float processSample(float x, int ch) noexcept {
-      const float y = b0 * x + z1[ch];
+    inline float processSample(float in, int ch) noexcept {
+      const double x = in;
+      const double y = b0 * x + z1[ch];
       z1[ch] = b1 * x - a1 * y + z2[ch];
       z2[ch] = b2 * x - a2 * y;
-      return y;
+      return static_cast<float>(y);
     }
-    void resetState() { z1[0] = z1[1] = z2[0] = z2[1] = 0.0f; }
+    void resetState() { z1[0] = z1[1] = z2[0] = z2[1] = 0.0; }
   };
 
   static bool isBandActive(const Band& band);
