@@ -210,3 +210,30 @@ TEST(PresetManagerTest, MoveShiftsByDeltaWithinTheSection) {
 }
 
 }  // namespace
+
+// Preset ids cross the webview bridge. An id is a prefix plus a bare file
+// stem; one that walks out of its preset folder must resolve to nothing, so
+// remove/rename/load can never touch a *.t3kpreset elsewhere on disk.
+TEST(PresetManagerTest, IdsCannotEscapeTheirPresetFolder) {
+  TempPresetDir tmp;
+  const juce::File root = tmp.dir.getChildFile("presets");
+  root.createDirectory();
+  PresetManager mgr(root);
+
+  const juce::File outside =
+      tmp.dir.getChildFile(juce::String("victim") + PresetManager::kFileExtension);
+  {
+    juce::FileOutputStream out(outside);
+    ASSERT_TRUE(out.openedOk());
+    out.write("T3KB", 4);
+    makePreset("outside").writeToStream(out);
+  }
+
+  for (const char* id : {"user:../victim", "user:..\\victim", "factory:../../victim"}) {
+    SCOPED_TRACE(id);
+    EXPECT_FALSE(mgr.load(id).isValid());
+    EXPECT_FALSE(mgr.rename(id, "Renamed"));
+    EXPECT_FALSE(mgr.remove(id));
+  }
+  EXPECT_TRUE(outside.existsAsFile());
+}
