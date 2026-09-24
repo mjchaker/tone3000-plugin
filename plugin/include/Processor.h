@@ -405,6 +405,8 @@ public:
 private:
   // One chain of blocks. Two of these make up `lanes` (declared below).
   using Lane = std::vector<std::unique_ptr<ChainBlock>>;
+  // Live blocks parked by id while a snapshot is reconciled against them.
+  using BlockPool = std::map<std::string, std::unique_ptr<ChainBlock>>;
 
   // Helper methods
   // Attenuation-only unit-energy gain for an IR file, matched to what the
@@ -669,7 +671,9 @@ private:
   // background load. Caller must hold chainMutex, and must destroy the
   // returned retired blocks *after* releasing it (engine teardown is heavy).
   [[nodiscard]] Lane restoreChainSnapshot(const juce::ValueTree& snapshot);
-  void reconcileChainFromTree(const juce::ValueTree& chainState, Lane& target, Lane& retired);
+  // Rebuilds `target` from `chainState`, moving matching blocks out of
+  // `pool` (engines and model caches intact) and creating the rest.
+  void reconcileChainFromTree(const juce::ValueTree& chainState, Lane& target, BlockPool& pool);
   // Queue a background download+prepare of `block`'s active model, resolving
   // url/name from its tone JSON. Used by undo/redo when a restored block's
   // model isn't cached in memory anymore. When the model can't even be

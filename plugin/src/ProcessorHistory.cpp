@@ -88,15 +88,7 @@ void TONE3000Processor::queueActiveModelLoad(ChainBlock& block) {
 }
 
 void TONE3000Processor::reconcileChainFromTree(const juce::ValueTree& chainState, Lane& target,
-                                               Lane& retired) {
-  // Park the live blocks by id so matching ones can be moved back with their
-  // engines/model caches intact. Anything left over at the end is a removal
-  // and goes into `retired`; the caller destroys those after releasing
-  // chainMutex (engine teardown is heavy).
-  std::map<std::string, std::unique_ptr<ChainBlock>> existing;
-  for (auto& b : target)
-    if (b)
-      existing[b->id] = std::move(b);
+                                               BlockPool& existing) {
   target.clear();
 
   for (int i = 0; i < chainState.getNumChildren(); ++i) {
@@ -184,10 +176,6 @@ void TONE3000Processor::reconcileChainFromTree(const juce::ValueTree& chainState
   // Snapshots from this build already satisfy the invariant (no-op); legacy
   // states/presets that carried a single insert get padded here.
   normalizeLaneInserts(target);
-
-  // Whatever is still parked was removed by this restore.
-  for (auto& [id, b] : existing)
-    retired.push_back(std::move(b));
 }
 
 TONE3000Processor::Lane TONE3000Processor::restoreChainSnapshot(const juce::ValueTree& snapshot) {
@@ -195,9 +183,25 @@ TONE3000Processor::Lane TONE3000Processor::restoreChainSnapshot(const juce::Valu
   if (!snapshot.isValid())
     return retired;
 
-  reconcileChainFromTree(snapshot.getChildWithName("ChainBlocks"), lane(ChainSide::Left), retired);
+  // Park the live blocks of *both* lanes by id so matching ones move back
+  // with their engines and model caches intact, whichever lane the snapshot
+  // puts them in. Pooling per lane rebuilt every block on undo/redo of a
+  // swap or cross-lane move, and undo snapshots carry no model bytes, so the
+  // rebuilt blocks had to refetch over the network.
+  BlockPool pool;
+  for (auto side : {ChainSide::Left, ChainSide::Right})
+    for (auto& b : lane(side))
+      if (b)
+        pool[b->id] = std::move(b);
+
+  reconcileChainFromTree(snapshot.getChildWithName("ChainBlocks"), lane(ChainSide::Left), pool);
   reconcileChainFromTree(snapshot.getChildWithName("RightChainBlocks"), lane(ChainSide::Right),
-                         retired);
+                         pool);
+
+  // Whatever is still parked was removed by this restore; the caller
+  // destroys those after releasing chainMutex (engine teardown is heavy).
+  for (auto& [id, b] : pool)
+    retired.push_back(std::move(b));
 
   const bool wasStereo = stereoEnabled.load();
   const bool snapStereo = static_cast<bool>(snapshot.getProperty("stereoEnabled", false));

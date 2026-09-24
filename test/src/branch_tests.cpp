@@ -449,3 +449,62 @@ TEST(ChainBranchTest, SurvivesStateSaveRestore) {
 }
 
 }  // namespace
+
+namespace {
+
+// The loaded/loading flags of a tone block, looked up across both lanes.
+struct BlockLoadState {
+  juce::String side;
+  bool loaded = false;
+  bool modelLoading = false;
+};
+
+BlockLoadState loadStateOf(TONE3000Processor& proc, const juce::String& blockId) {
+  const juce::var state = proc.getChainState(-1);
+  for (const char* key : {"chain", "chainRight"})
+    if (const auto* lane = state[key].getArray())
+      for (const auto& item : *lane)
+        if (item["blockId"].toString() == blockId)
+          return {key, static_cast<bool>(item["loaded"]), static_cast<bool>(item["modelLoading"])};
+  return {};
+}
+
+}  // namespace
+
+// Undo snapshots are settings-only (no model bytes), so a block that undo
+// rebuilds instead of reusing has nothing cached and must refetch over the
+// network: dry, then a retry badge when offline. Undo and redo of lane-
+// crossing edits must therefore reuse blocks from *either* lane.
+TEST(ChainBranchTest, UndoAcrossLanesKeepsLoadedEngines) {
+  ChainTestProcessor proc;
+  seedStereoChains(proc, {"blk-a"}, {"blk-b"});
+  ASSERT_TRUE(waitForChainLoaded(proc));
+
+  const auto expectLoadedOn = [&](const char* id, const char* side) {
+    const auto s = loadStateOf(proc, id);
+    EXPECT_EQ(s.side, juce::String(side)) << id;
+    EXPECT_TRUE(s.loaded) << id << " was rebuilt instead of reused";
+    EXPECT_FALSE(s.modelLoading) << id << " was queued for a reload";
+  };
+
+  letAudioGoIdle();
+  ASSERT_TRUE(proc.swapChains());
+  letAudioGoIdle();
+  ASSERT_TRUE(proc.undoChain());
+  expectLoadedOn("blk-a", "chain");
+  expectLoadedOn("blk-b", "chainRight");
+
+  letAudioGoIdle();
+  ASSERT_TRUE(proc.redoChain());
+  expectLoadedOn("blk-a", "chainRight");
+  expectLoadedOn("blk-b", "chain");
+
+  letAudioGoIdle();
+  ASSERT_TRUE(proc.undoChain());
+  letAudioGoIdle();
+  ASSERT_TRUE(proc.moveBlockToChain("blk-a", "right", 0));
+  letAudioGoIdle();
+  ASSERT_TRUE(proc.undoChain());
+  expectLoadedOn("blk-a", "chain");
+  expectLoadedOn("blk-b", "chainRight");
+}
