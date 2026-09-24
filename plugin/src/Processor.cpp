@@ -326,19 +326,37 @@ void TONE3000Processor::applyOversamplingSettings() {
   // IR blocks need nothing here: their convolvers run at the base rate
   // behind per-block islands (re-prepared by prepareChain above), so neither
   // the kernel nor the tail report moves with the factor.
+  requeueNamEnginesForChainFactor();
+
+  bumpChainRevision();
+}
+
+bool TONE3000Processor::requeueNamEnginesForChainFactor() {
+  const int factor = chainOversampleFactor.load();
+  bool changed = false;
   for (auto& l : lanes) {
     for (auto& block : l) {
-      if (block->type == ChainBlockType::NAM && block->loaded && !block->modelLoading) {
-        // In-flight loads are left alone: the apply path's factor-drift guard
-        // re-queues them itself.
-        block->loaded = false;
+      if (block->type != ChainBlockType::NAM || block->namEngine == nullptr ||
+          block->namEngine->getOversampleFactor() == factor)
+        continue;
+      // A failed block isn't processed and reloads (at the live factor) on
+      // retry; leave its retry state alone.
+      if (!block->loaded && !block->modelLoading)
+        continue;
+      // Silence the mismatched engine now, including a block still playing
+      // its previous engine while a model switch downloads: it would run at
+      // the wrong rate until that load lands. An in-flight load is not
+      // re-queued; if it prepared with the old factor, the apply path's
+      // factor-drift guard re-queues it.
+      block->loaded = false;
+      if (!block->modelLoading) {
         block->modelLoading = true;
         queueActiveModelLoad(*block);
       }
+      changed = true;
     }
   }
-
-  bumpChainRevision();
+  return changed;
 }
 
 TONE3000Processor::~TONE3000Processor() {
@@ -719,6 +737,13 @@ void TONE3000Processor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     juce::ScopedLock lock(chainMutex);
     for (auto& l : lanes)
       prepareChain(l);
+    // prepareChain re-sizes NAM engines but can't change their phase count.
+    // When this prepare moved the factor (a host restoring an oversampled
+    // session re-prepares before the parameter listener's async apply runs,
+    // and that apply then sees no change and returns early), engines built
+    // for the old factor would keep running at the new rate. Rebuild them.
+    if (requeueNamEnginesForChainFactor())
+      bumpChainRevision();
   }
 
   juce::dsp::ProcessSpec spec{sampleRate, static_cast<juce::uint32>(samplesPerBlock), 2};

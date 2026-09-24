@@ -961,6 +961,14 @@ private:
   void handleAsyncUpdate() override;
   void applyOversamplingSettings();
 
+  // A NAM engine is built for one oversampling factor (its phase count) and
+  // can't be re-prepared into another. Every audible or loading NAM block
+  // whose engine doesn't match the live factor drops to dry passthrough;
+  // idle ones queue a cache-first rebuild, in-flight ones are re-queued by
+  // the apply path's factor-drift guard. Returns true when any block
+  // changed. Caller holds chainMutex.
+  bool requeueNamEnginesForChainFactor();
+
   // Per-block cached values (refreshed once per processBlock from paramRefs).
   float cacheInputLevel = 0.5f;
   float cacheOutputLevel = 0.5f;
