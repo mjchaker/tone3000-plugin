@@ -1065,12 +1065,19 @@ void TONE3000Processor::processChainOnBuffer(std::vector<std::unique_ptr<ChainBl
           continue;
         }
 
-        // Calculate additional calibration gain for this specific NAM block
+        // Calculate additional calibration gain for this specific NAM block.
+        // The model's input level is file metadata (local .nam files are
+        // arbitrary), so it gets the same sanity range as the output level
+        // below: a junk -500 dBu was a +512 dB gain into the model.
         float calibrationGain = 1.0f;
         if (cacheCalibrateInput && block->namEngine->hasInputLevel()) {
           const double modelInputLevel = block->namEngine->getInputLevel();
-          const double calibrationAdjustmentDb = cacheInputCalibrationLevel - modelInputLevel;
-          calibrationGain = juce::Decibels::decibelsToGain(static_cast<float>(calibrationAdjustmentDb));
+          if (std::isfinite(modelInputLevel) && modelInputLevel >= -60.0 &&
+              modelInputLevel <= 60.0) {
+            const double calibrationAdjustmentDb = cacheInputCalibrationLevel - modelInputLevel;
+            calibrationGain =
+                juce::Decibels::decibelsToGain(static_cast<float>(calibrationAdjustmentDb));
+          }
         }
 
         // Apply calibration gain to the buffer

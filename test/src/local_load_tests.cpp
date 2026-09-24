@@ -286,3 +286,36 @@ TEST(LocalLoadTest, NewBlockEqRunsAtOversampledChainRate) {
   EXPECT_NEAR(levelDbAt(1000.0, 12.0) - levelDbAt(1000.0, 0.0), 12.0, 0.25);
   EXPECT_NEAR(levelDbAt(8000.0, 12.0) - levelDbAt(8000.0, 0.0), 0.0, 0.25);
 }
+
+// input_level_dbu is capture metadata from an arbitrary local file. A junk
+// value must not turn input calibration into a +500 dB gain: that overflows
+// the model to Inf/NaN, and recursive filters downstream (oversampler
+// allpasses, EQ, gate) latch the NaN until the next re-prepare.
+TEST(LocalLoadTest, JunkInputLevelMetadataIsIgnoredByCalibration) {
+  juce::MemoryBlock raw;
+  ASSERT_TRUE(testFile("a2-amp-test.nam").loadFileAsData(raw));
+  juce::var model = juce::JSON::parse(raw.toString());
+  ASSERT_TRUE(model["metadata"].isObject());
+  model["metadata"].getDynamicObject()->setProperty("input_level_dbu", -500.0);
+  const juce::String json = juce::JSON::toString(model, true);
+
+  TONE3000Processor proc;
+  proc.setPlayConfigDetails(2, 2, kFs, 512);
+  proc.parameters.getParameter("calibrateInput")->setValueNotifyingHost(1.0f);
+  proc.prepareToPlay(kFs, 512);
+  const juce::var res = proc.loadLocalTone(
+      "junk-level",
+      filesOf({fileEntry("junk-level.nam",
+                         juce::Base64::toBase64(json.toRawUTF8(), json.getNumBytesAsUTF8()))}));
+  ASSERT_TRUE(res["error"].isVoid()) << res["error"].toString().toStdString();
+  ASSERT_TRUE(waitForChainLoaded(proc));
+
+  const auto [outL, outR] = processStereo(proc, makeSine(48000, 220.0, 0.1f));
+  float peak = 0.0f;
+  for (const float s : outL) {
+    ASSERT_TRUE(std::isfinite(s));
+    peak = std::max(peak, std::abs(s));
+  }
+  EXPECT_GT(peak, 1e-4f) << "the amp should still pass signal";
+  EXPECT_LT(peak, 16.0f);
+}
