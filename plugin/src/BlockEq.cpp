@@ -122,6 +122,15 @@ bool BlockEq::isBandActive(const Band& band) {
 }
 
 BlockEq::Band BlockEq::clampBand(Band band) {
+  // NaN passes jlimit untouched and would poison the biquad for good; a
+  // non-finite field falls back to the neutral band's value instead.
+  const Band neutral;
+  if (!std::isfinite(band.freqHz))
+    band.freqHz = neutral.freqHz;
+  if (!std::isfinite(band.gainDb))
+    band.gainDb = neutral.gainDb;
+  if (!std::isfinite(band.q))
+    band.q = neutral.q;
   band.freqHz = juce::jlimit(kMinFreqHz, kMaxFreqHz, band.freqHz);
   band.gainDb = juce::jlimit(-kMaxAbsGainDb, kMaxAbsGainDb, band.gainDb);
   band.q = juce::jlimit(kMinQ, kMaxQ, band.q);

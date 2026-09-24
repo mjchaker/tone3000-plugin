@@ -1,5 +1,6 @@
 #include "Processor.h"
 
+#include <cmath>
 #include <cstring>
 
 // #############################
@@ -145,9 +146,17 @@ juce::ValueTree TONE3000Processor::serializeBlockSettings(const ChainBlock& bloc
 void TONE3000Processor::applyBlockSettings(ChainBlock& block, const juce::ValueTree& blockState) {
   block.enabled = static_cast<bool>(blockState.getProperty("enabled", true));
   block.normalizeEnabled = static_cast<bool>(blockState.getProperty("normalize", true));
-  block.inputGainNormalized = static_cast<float>(blockState.getProperty("inputGain", 0.5f));
-  block.outputGainNormalized = static_cast<float>(blockState.getProperty("outputGain", 0.5f));
-  block.mixNormalized = static_cast<float>(blockState.getProperty("mix", 1.0f));
+  // Normalized 0..1 like setBlockParam enforces. This tree comes from DAW
+  // projects, presets and the paste clipboard, none guaranteed to be ours:
+  // gains map straight to dB, so an unclamped 5.0 was a +216 dB block, and
+  // NaN slips through jlimit (every comparison is false).
+  const auto unitParam = [&blockState](const char* key, float fallback) {
+    const double v = blockState.getProperty(key, fallback);
+    return std::isfinite(v) ? static_cast<float>(juce::jlimit(0.0, 1.0, v)) : fallback;
+  };
+  block.inputGainNormalized = unitParam("inputGain", 0.5f);
+  block.outputGainNormalized = unitParam("outputGain", 0.5f);
+  block.mixNormalized = unitParam("mix", 1.0f);
 
   // States from before per-block sizes restore as lite (0.0). An engine the
   // restore keeps loaded (see reconcileChainFromTree) retiers in place: the
