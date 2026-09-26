@@ -79,18 +79,23 @@ bool PresetManager::writePresetFile(const juce::File& file, const juce::ValueTre
 }
 
 juce::File PresetManager::fileForId(const juce::String& id) const {
+  // Ids arrive over the webview bridge. A stem is a bare file name; one that
+  // walks out of its folder ("user:../x") resolves to nothing, so load,
+  // rename and remove can't reach a preset file elsewhere on disk.
+  const auto inside = [](const juce::File& dir, const juce::String& stem) {
+    const juce::File file = dir.getChildFile(stem + kFileExtension);
+    return file.getParentDirectory() == dir ? file : juce::File();
+  };
   if (id.startsWith(kUserPrefix))
-    return userDir.getChildFile(id.fromFirstOccurrenceOf(kUserPrefix, false, false) +
-                                kFileExtension);
+    return inside(userDir, id.fromFirstOccurrenceOf(kUserPrefix, false, false));
   if (id.startsWith(kFactoryPrefix)) {
-    const juce::String stem =
-        id.fromFirstOccurrenceOf(kFactoryPrefix, false, false) + kFileExtension;
+    const juce::String stem = id.fromFirstOccurrenceOf(kFactoryPrefix, false, false);
     // User Factory overrides the installer-shipped copy when both exist.
-    const juce::File local = factoryDir.getChildFile(stem);
+    const juce::File local = inside(factoryDir, stem);
     if (local.existsAsFile())
       return local;
     if (systemFactoryDir != juce::File())
-      return systemFactoryDir.getChildFile(stem);
+      return inside(systemFactoryDir, stem);
     return {};
   }
   return {};
@@ -263,5 +268,8 @@ bool PresetManager::rename(const juce::String& id, const juce::String& newName) 
 bool PresetManager::remove(const juce::String& id) const {
   if (!id.startsWith(kUserPrefix))
     return false;
-  return fileForId(id).deleteFile();
+  // File::deleteFile() reports success for a missing file (including the
+  // empty File() an invalid id resolves to), so require one to exist.
+  const juce::File file = fileForId(id);
+  return file.existsAsFile() && file.deleteFile();
 }

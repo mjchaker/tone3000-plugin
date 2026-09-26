@@ -3,7 +3,7 @@ import { ShieldAlert, WifiOff } from './icons';
 import { isNativeFunctionRegistered } from '../backend/JuceBackend';
 import { useAudioBackend } from '../hooks/useAudioBackend';
 import type { ConnectionProblem } from '../hooks/useConnectionGate';
-import { filledPillButtonStyle, pillButtonStyle } from './theme';
+import { filledPillButtonStyle, pillButtonStyle, INSET_0 } from './theme';
 
 interface ConnectionModalProps {
   problem: ConnectionProblem | null;
@@ -44,7 +44,7 @@ export const ConnectionModal: React.FC<ConnectionModalProps> = ({
       aria-label={offline ? 'No internet connection' : 'Secure connection failed'}
       style={{
         position: 'absolute',
-        inset: 0,
+        ...INSET_0,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         backdropFilter: 'blur(4rem)',
         WebkitBackdropFilter: 'blur(4rem)',

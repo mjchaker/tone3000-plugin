@@ -19,6 +19,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cmath>
+#include <limits>
 #include <vector>
 
 namespace {
@@ -178,3 +180,42 @@ TEST(ChainDuplicateTest, CloneSoundsIdenticalToSource) {
 }
 
 }  // namespace
+
+// Block settings arrive from DAW projects, presets and the paste clipboard,
+// none of which this build wrote. Out-of-range or non-finite values must
+// restore clamped: inputGain maps straight to dB ((v - 0.5) * 48), so a
+// stray 5.0 was a +216 dB block, and a NaN EQ band poisoned its biquad.
+TEST(ChainBlockRestoreTest, ClampsCorruptBlockSettings) {
+  ChainTestProcessor proc;
+  auto block = makeIrBlockTree("blk-a", 1, 100);
+  const double nan = std::numeric_limits<double>::quiet_NaN();
+  block.setProperty("inputGain", 5.0, nullptr);
+  block.setProperty("outputGain", nan, nullptr);
+  block.setProperty("mix", -3.0, nullptr);
+  juce::ValueTree eq("Eq");
+  for (int i = 0; i < 6; ++i) {
+    juce::ValueTree band("Band");
+    band.setProperty("type", "bell", nullptr);
+    band.setProperty("freqHz", i == 1 ? nan : 1000.0, nullptr);
+    band.setProperty("gainDb", i == 2 ? nan : 0.0, nullptr);
+    band.setProperty("q", i == 3 ? std::numeric_limits<double>::infinity() : 1.0, nullptr);
+    eq.appendChild(band, nullptr);
+  }
+  block.appendChild(eq, nullptr);
+
+  juce::ValueTree state("ChainSnapshot");
+  juce::ValueTree left("ChainBlocks");
+  left.appendChild(block, nullptr);
+  state.appendChild(left, nullptr);
+  proc.restoreFromTree(state);
+
+  const juce::var params = proc.getChainState(-1)["chain"][0]["params"];
+  EXPECT_FLOAT_EQ(static_cast<float>(params["inputGain"]), 1.0f);
+  EXPECT_FLOAT_EQ(static_cast<float>(params["outputGain"]), 0.5f) << "non-finite -> default";
+  EXPECT_FLOAT_EQ(static_cast<float>(params["mix"]), 0.0f);
+  for (int i = 0; i < 6; ++i) {
+    const juce::var band = params["eq"]["bands"][i];
+    for (const char* key : {"freqHz", "gainDb", "q"})
+      EXPECT_TRUE(std::isfinite(static_cast<double>(band[key]))) << "band " << i << " " << key;
+  }
+}

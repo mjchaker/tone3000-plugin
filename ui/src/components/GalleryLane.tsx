@@ -23,6 +23,7 @@ import {
   segmentedCellStyle,
   segmentedGroupStyle,
   uiOffClass,
+  INSET_0,
 } from './theme';
 import { useParameter } from '../hooks/useParameter';
 import { useChainActions } from '../hooks/useChainActions';
@@ -118,7 +119,7 @@ const BranchRail: React.FC<{
   const tapIndex = isTrunk ? items.findIndex((i) => i.blockId === branch.afterBlockId) : -1;
 
   return (
-    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 3 }}>
+    <div style={{ position: 'absolute', ...INSET_0, pointerEvents: 'none', zIndex: 3 }}>
       {interactive &&
         items.map((item, index) => {
           // The tap point is a tone block's output, i.e. the gap after it.
@@ -168,7 +169,7 @@ const GhostRail: React.FC<{ slots: number; tileSize: number }> = ({ slots, tileS
   <div
     style={{
       position: 'absolute',
-      inset: 0,
+      ...INSET_0,
       display: 'flex',
       flexDirection: 'row',
       alignItems: 'center',

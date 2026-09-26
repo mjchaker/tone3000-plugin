@@ -12,6 +12,11 @@
 #include "chain_test_helpers.h"
 
 #include <gtest/gtest.h>
+#include <juce_audio_formats/juce_audio_formats.h>
+
+#include <cmath>
+#include <limits>
+#include <memory>
 
 namespace {
 
@@ -250,4 +255,189 @@ TEST(LocalLoadTest, PathRejectsBadInputs) {
   // Rejected loads must not leave a block behind.
   EXPECT_TRUE(firstToneBlock(proc).isVoid());
   dir.deleteRecursively();
+}
+
+// A freshly loaded block's EQ must run at the chain rate, not the 48 kHz
+// default. Blocks added mid-session are never seen by prepareChain; before
+// the fix a +12 dB bell dialed at 1 kHz under 8x oversampling landed at
+// 8 kHz, so the audio stopped matching the drawn curve. Measured
+// differentially (bell on vs. flat) so the linear cab IR drops out.
+TEST(LocalLoadTest, NewBlockEqRunsAtOversampledChainRate) {
+  TONE3000Processor proc;
+  proc.setPlayConfigDetails(2, 2, kFs, 512);
+  proc.parameters.getParameter("osEnabled")->setValueNotifyingHost(1.0f);
+  proc.parameters.getParameter("osFactor")->setValueNotifyingHost(1.0f);  // index 2 = 8x
+  proc.prepareToPlay(kFs, 512);
+
+  const juce::var res =
+      proc.loadLocalTone("cab-ir-test", filesOf({testFileEntry("cab-ir-test.wav")}));
+  const std::string blockId = res["blockId"].toString().toStdString();
+  ASSERT_FALSE(blockId.empty());
+  ASSERT_TRUE(waitForChainLoaded(proc));
+
+  const auto levelDbAt = [&](double freq, double bellGainDb) {
+    auto* band = new juce::DynamicObject();
+    band->setProperty("type", "bell");
+    band->setProperty("freqHz", 1000.0);
+    band->setProperty("gainDb", bellGainDb);
+    band->setProperty("q", 4.0);
+    letAudioGoIdle();
+    EXPECT_TRUE(proc.setBlockEqBand(blockId, 2, juce::var(band)));
+    const auto [outL, outR] = processStereo(proc, makeSine(3 * 48000, freq, 0.25f));
+    // Last second only: fades, smoothers and the filter have settled.
+    return db(goertzelPower(outL.data() + 2 * 48000, 48000, freq));
+  };
+
+  EXPECT_NEAR(levelDbAt(1000.0, 12.0) - levelDbAt(1000.0, 0.0), 12.0, 0.25);
+  EXPECT_NEAR(levelDbAt(8000.0, 12.0) - levelDbAt(8000.0, 0.0), 0.0, 0.25);
+}
+
+// input_level_dbu is capture metadata from an arbitrary local file. A junk
+// value must not turn input calibration into a +500 dB gain: that overflows
+// the model to Inf/NaN, and recursive filters downstream (oversampler
+// allpasses, EQ, gate) latch the NaN until the next re-prepare.
+TEST(LocalLoadTest, JunkInputLevelMetadataIsIgnoredByCalibration) {
+  juce::MemoryBlock raw;
+  ASSERT_TRUE(testFile("a2-amp-test.nam").loadFileAsData(raw));
+  juce::var model = juce::JSON::parse(raw.toString());
+  ASSERT_TRUE(model["metadata"].isObject());
+  model["metadata"].getDynamicObject()->setProperty("input_level_dbu", -500.0);
+  const juce::String json = juce::JSON::toString(model, true);
+
+  TONE3000Processor proc;
+  proc.setPlayConfigDetails(2, 2, kFs, 512);
+  proc.parameters.getParameter("calibrateInput")->setValueNotifyingHost(1.0f);
+  proc.prepareToPlay(kFs, 512);
+  const juce::var res = proc.loadLocalTone(
+      "junk-level",
+      filesOf({fileEntry("junk-level.nam",
+                         juce::Base64::toBase64(json.toRawUTF8(), json.getNumBytesAsUTF8()))}));
+  ASSERT_TRUE(res["error"].isVoid()) << res["error"].toString().toStdString();
+  ASSERT_TRUE(waitForChainLoaded(proc));
+
+  const auto [outL, outR] = processStereo(proc, makeSine(48000, 220.0, 0.1f));
+  float peak = 0.0f;
+  for (const float s : outL) {
+    ASSERT_TRUE(std::isfinite(s));
+    peak = std::max(peak, std::abs(s));
+  }
+  EXPECT_GT(peak, 1e-4f) << "the amp should still pass signal";
+  EXPECT_LT(peak, 16.0f);
+}
+
+namespace {
+
+// Polls the chain state until `blockId` settles (loaded or failed).
+juce::var waitForBlockSettled(TONE3000Processor& proc, const juce::String& blockId) {
+  const auto deadline = juce::Time::getMillisecondCounter() + 20000u;
+  while (juce::Time::getMillisecondCounter() < deadline) {
+    const juce::var state = proc.getChainState(-1);
+    if (const auto* lane = state["chain"].getArray())
+      for (const auto& item : *lane)
+        if (item["blockId"].toString() == blockId && !static_cast<bool>(item["modelLoading"]))
+          return item;
+    juce::Thread::sleep(10);
+  }
+  return {};
+}
+
+}  // namespace
+
+// A download that fails to prepare (an HTTP error page, a truncated body)
+// must not be cached as the model: Retry reads the cache first, so cached
+// junk made the block fail forever, and it rode into every later save.
+// Both load paths are covered: a fresh tone pick (loadTone) and a restore
+// or model switch (switchModelInBackground).
+TEST(LocalLoadTest, RetryRefetchesAfterABadDownload) {
+  const juce::File dir = juce::File::getSpecialLocation(juce::File::tempDirectory)
+                             .getChildFile("t3k-retry-" + juce::Uuid().toString());
+  ASSERT_TRUE(dir.createDirectory());
+  const juce::File model = dir.getChildFile("cab.wav");
+  const juce::String toneJson =
+      "{\"id\":7,\"title\":\"Retry IR\",\"format\":\"ir\",\"models\":[{\"id\":70,"
+      "\"name\":\"cab\",\"model_url\":\"" +
+      juce::URL(model).toString(false) + "\"}]}";
+
+  for (const bool viaRestore : {false, true}) {
+    SCOPED_TRACE(viaRestore ? "restore path" : "loadTone path");
+    ASSERT_TRUE(model.replaceWithText("<html>502 Bad Gateway</html>"));
+
+    ChainTestProcessor proc;
+    juce::String blockId;
+    if (viaRestore) {
+      juce::ValueTree block("ChainBlock");
+      block.setProperty("id", "blk-r", nullptr);
+      block.setProperty("type", "ir", nullptr);
+      block.setProperty("toneId", 7, nullptr);
+      block.setProperty("toneJson", toneJson, nullptr);
+      block.setProperty("activeModelId", 70, nullptr);
+      juce::ValueTree state("ChainSnapshot");
+      juce::ValueTree left("ChainBlocks");
+      left.appendChild(block, nullptr);
+      state.appendChild(left, nullptr);
+      proc.restoreFromTree(state);
+      blockId = "blk-r";
+    } else {
+      blockId = proc.loadTone(toneJson);
+    }
+    ASSERT_TRUE(blockId.isNotEmpty());
+    EXPECT_TRUE(static_cast<bool>(waitForBlockSettled(proc, blockId)["loadFailed"]));
+
+    ASSERT_TRUE(testFile("cab-ir-test.wav").copyFileTo(model));
+    ASSERT_TRUE(proc.retryModelLoad(blockId.toStdString()));
+    EXPECT_TRUE(static_cast<bool>(waitForBlockSettled(proc, blockId)["loaded"]))
+        << "retry reused the cached bad bytes";
+  }
+  dir.deleteRecursively();
+}
+
+// A NaN/Inf made inside the chain must never reach the host. Here an amp
+// whose weights are scaled far past float range (a blown-up capture) emits
+// NaN on every block; the output must stay finite while it plays, and the
+// dry signal must come back once the block is removed.
+TEST(LocalLoadTest, BlownUpModelNeverMakesTheOutputNonFinite) {
+  juce::MemoryBlock raw;
+  ASSERT_TRUE(testFile("a2-amp-test.nam").loadFileAsData(raw));
+  juce::var model = juce::JSON::parse(raw.toString());
+  // A2 captures are slimmable containers: the weights live per submodel.
+  const auto* submodels = model["config"]["submodels"].getArray();
+  ASSERT_NE(submodels, nullptr);
+  for (const auto& sub : *submodels) {
+    auto* weights = sub["model"]["weights"].getArray();
+    ASSERT_NE(weights, nullptr);
+    for (auto& w : *weights)
+      w = static_cast<double>(w) * 1e10;
+  }
+  const juce::String json = juce::JSON::toString(model, true);
+
+  TONE3000Processor proc;
+  proc.setPlayConfigDetails(2, 2, kFs, 512);
+  proc.prepareToPlay(kFs, 512);
+  const juce::var res = proc.loadLocalTone(
+      "blown-up",
+      filesOf({fileEntry("blown-up.nam",
+                         juce::Base64::toBase64(json.toRawUTF8(), json.getNumBytesAsUTF8()))}));
+  ASSERT_TRUE(res["error"].isVoid()) << res["error"].toString().toStdString();
+  ASSERT_TRUE(waitForChainLoaded(proc));
+
+  const auto expectFinite = [](const std::vector<float>& l, const std::vector<float>& r) {
+    for (size_t i = 0; i < l.size(); ++i)
+      if (!std::isfinite(l[i]) || !std::isfinite(r[i]))
+        return ::testing::AssertionFailure() << "non-finite output at sample " << i;
+    return ::testing::AssertionSuccess();
+  };
+  const auto in = makeSine(48000, 220.0, 0.25f);
+  {
+    const auto [outL, outR] = processStereo(proc, in);
+    EXPECT_TRUE(expectFinite(outL, outR)) << "while the amp is blown up";
+  }
+
+  letAudioGoIdle();
+  ASSERT_TRUE(proc.removeChainBlock(res["blockId"].toString().toStdString()));
+  const auto [outL, outR] = processStereo(proc, in);
+  EXPECT_TRUE(expectFinite(outL, outR)) << "after the amp was removed";
+  float peak = 0.0f;
+  for (size_t i = outL.size() / 2; i < outL.size(); ++i)
+    peak = std::max(peak, std::abs(outL[i]));
+  EXPECT_GT(peak, 0.01f) << "the dry signal never came back";
 }

@@ -17,6 +17,9 @@ import { getUiScale, rem } from '../hooks/useUiScale';
  * - Double-click opens inline text entry in real units (Enter commits,
  *   Escape cancels, blur commits).
  * - Alt/Option-click resets to the default value (when one is declared).
+ * - Keyboard (knobs are in the tab order, as ARIA sliders): arrows step 1%
+ *   of the range (Shift: 0.1%), Page Up/Down 10%, Home/End jump to the
+ *   ends, Delete/Backspace resets like Alt-click. See knobKeyValue.
  * No scroll-wheel support on purpose: knobs sit inside the horizontally
  * scrolling chain view, and hijacking wheel events there hurts more than it
  * helps.
@@ -86,6 +89,50 @@ const roundKnobValue = (x: number, snapCenter: boolean, fine: boolean) => {
 };
 
 const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x));
+
+/** Keyboard step as a fraction of the knob's range; Shift divides it by 10. */
+const KEY_STEP = 0.01;
+const KEY_PAGE_STEPS = 10;
+
+/**
+ * The value a slider key moves the knob to, or null for keys the knob
+ * doesn't handle. Steps are relative to the range, so the pan halves'
+ * 0..0.5 track steps as finely as a full knob. No bipolar detent: stepping
+ * off center would snap straight back, so arrows could never leave it.
+ * Results round to the text-entry grid (1e-4) so repeated steps don't
+ * accumulate float noise.
+ */
+export function knobKeyValue(
+  key: string,
+  value: number,
+  { min, max, fine }: { min: number; max: number; fine: boolean }
+): number | null {
+  const step = ((max - min) * KEY_STEP) / (fine ? 10 : 1);
+  let next: number;
+  switch (key) {
+    case 'ArrowUp':
+    case 'ArrowRight':
+      next = value + step;
+      break;
+    case 'ArrowDown':
+    case 'ArrowLeft':
+      next = value - step;
+      break;
+    case 'PageUp':
+      next = value + step * KEY_PAGE_STEPS;
+      break;
+    case 'PageDown':
+      next = value - step * KEY_PAGE_STEPS;
+      break;
+    case 'Home':
+      return min;
+    case 'End':
+      return max;
+    default:
+      return null;
+  }
+  return roundKnobValue(clamp(next, min, max), false, true);
+}
 
 export const KnobControl: React.FC<KnobControlProps> = ({
   label,
@@ -318,6 +365,25 @@ export const KnobControl: React.FC<KnobControlProps> = ({
     return () => unpinHelp(text);
   }, [dragging]);
 
+  // Keyboard control. Each press is a discrete edit, like a typed value, so
+  // no drag-state gesture; a held key repeats through the owner's updated
+  // `value`. Mid-drag the pointer owns the value.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (draggingRef.current || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (defaultValue === undefined) return;
+      e.preventDefault();
+      onChange(defaultValue);
+      onReset?.();
+      return;
+    }
+    const next = knobKeyValue(e.key, value, { min, max, fine: e.shiftKey });
+    if (next === null) return;
+    // Also keeps arrows and Page Up/Down from scrolling the chain view.
+    e.preventDefault();
+    if (next !== value) onChange(next);
+  };
+
   const openEditor = useCallback(() => {
     setEditText(scale.editText(shownValue));
   }, [scale, shownValue]);
@@ -427,14 +493,16 @@ export const KnobControl: React.FC<KnobControlProps> = ({
         valueRawDisplayFn={(x) => scale.format(x)}
         onValueRawChange={() => {}}
         onDoubleClick={openEditor}
+        onKeyDown={handleKeyDown}
+        includeIntoTabOrder
+        // Focus styling lives in index.css (.knob): a ring for keyboard
+        // focus only, none for the focus() a click gives it.
         className="knob"
         style={{
           width: rem(size),
           height: rem(size),
           position: 'relative',
           userSelect: 'none',
-          outline: 'none',
-          boxShadow: 'none',
           WebkitTapHighlightColor: 'transparent',
           cursor: 'pointer',
         }}

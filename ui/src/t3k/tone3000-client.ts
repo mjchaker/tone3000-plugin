@@ -205,6 +205,18 @@ export async function handleOAuthCallback(
 
 // Token refresh
 
+/**
+ * The server refused the refresh grant (revoked, expired, or rotated away):
+ * the stored session is dead. Anything else a refresh can throw (offline,
+ * 5xx, 429) is transient and must not cost the user their session.
+ */
+export class RefreshRejectedError extends Error {
+  constructor(status: number) {
+    super(`token_refresh_rejected (${status})`);
+    this.name = 'RefreshRejectedError';
+  }
+}
+
 export async function refreshTokens(
   refreshToken: string,
   publishableKey: string
@@ -219,16 +231,21 @@ export async function refreshTokens(
     }),
   });
 
-  if (!res.ok) throw new Error('token_refresh_failed');
+  // 400 is OAuth's invalid_grant, 401/403 a refused client: definitive.
+  if (res.status === 400 || res.status === 401 || res.status === 403)
+    throw new RefreshRejectedError(res.status);
+  if (!res.ok) throw new Error(`token_refresh_failed (${res.status})`);
 
   const data = (await res.json()) as {
     access_token: string;
-    refresh_token: string;
+    refresh_token?: string;
     expires_in: number;
   };
   return {
     access_token: data.access_token,
-    refresh_token: data.refresh_token,
+    // OAuth lets a refresh response omit refresh_token, meaning "keep using
+    // the one you have".
+    refresh_token: data.refresh_token ?? refreshToken,
     expires_at: Date.now() + data.expires_in * 1000,
   };
 }
@@ -248,6 +265,8 @@ const STORAGE_KEY = 't3k_tokens';
  */
 export class T3KClient {
   private refreshPromise: Promise<T3KTokens> | null = null;
+  /** Bumped by logout(); a refresh started before it must not land after. */
+  private sessionGeneration = 0;
   private onTokensUpdated?: (tokens: T3KTokens) => void;
   private readonly publishableKey: string;
   private readonly onAuthRequired: () => void;
@@ -273,7 +292,15 @@ export class T3KClient {
 
   getTokens(): T3KTokens | null {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as T3KTokens) : null;
+    if (!raw) return null;
+    // Read during render (isAuthenticated), so a corrupt value must read as
+    // signed out rather than throw the whole UI into the ErrorBoundary.
+    try {
+      const tokens = JSON.parse(raw) as T3KTokens | null;
+      return tokens && typeof tokens.refresh_token === 'string' ? tokens : null;
+    } catch {
+      return null;
+    }
   }
 
   clearTokens(): void {
@@ -286,6 +313,8 @@ export class T3KClient {
    * (Native's copy of the access token is cleared separately by the caller.)
    */
   logout(): void {
+    this.sessionGeneration++;
+    this.refreshPromise = null;
     this.clearTokens();
     sessionStorage.removeItem(PKCE_CODE_VERIFIER_KEY);
     sessionStorage.removeItem(PKCE_STATE_KEY);
@@ -294,6 +323,13 @@ export class T3KClient {
   /**
    * Returns a valid access token, refreshing it if it is within 60s of expiry.
    * Multiple concurrent callers share a single in-flight refresh.
+   *
+   * Only a definitive rejection (RefreshRejectedError) signs the user out, and
+   * only when storage still holds the refresh token that was rejected: every
+   * plugin instance shares this localStorage, so another editor may have
+   * rotated it in the meantime. Transient failures rethrow and keep the
+   * session. A refresh that settles after logout() is dropped rather than
+   * signing the user back in.
    */
   async getAccessToken(): Promise<string> {
     const tokens = this.getTokens();
@@ -304,18 +340,30 @@ export class T3KClient {
 
     if (Date.now() > tokens.expires_at - 60_000) {
       if (!this.refreshPromise) {
-        this.refreshPromise = refreshTokens(tokens.refresh_token, this.publishableKey)
+        const generation = this.sessionGeneration;
+        const usedRefreshToken = tokens.refresh_token;
+        const settled = () => generation === this.sessionGeneration;
+        const pending: Promise<T3KTokens> = refreshTokens(usedRefreshToken, this.publishableKey)
           .then((t) => {
+            if (!settled()) throw new Error('not_authenticated');
             this.setTokens(t);
-            this.refreshPromise = null;
             return t;
           })
           .catch((err) => {
-            this.clearTokens();
-            this.refreshPromise = null;
-            this.onAuthRequired();
+            if (
+              settled() &&
+              err instanceof RefreshRejectedError &&
+              this.getTokens()?.refresh_token === usedRefreshToken
+            ) {
+              this.clearTokens();
+              this.onAuthRequired();
+            }
             throw err;
+          })
+          .finally(() => {
+            if (this.refreshPromise === pending) this.refreshPromise = null;
           });
+        this.refreshPromise = pending;
       }
       return (await this.refreshPromise).access_token;
     }

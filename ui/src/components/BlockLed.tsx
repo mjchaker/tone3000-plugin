@@ -2,6 +2,7 @@ import React from 'react';
 import { useMeter, useMeterClip } from '../hooks/useMeters';
 import { METER_MAX_DB, METER_MIN_DB } from './meterColor';
 import { HELP, helpProps } from './helpText';
+import { INSET_0 } from './theme';
 
 interface BlockLedProps {
   /** Meter id from useMeters (e.g. meterId.blockOut(blockId)). */
@@ -130,7 +131,7 @@ export const BlockEnergyBorder: React.FC<BlockEnergyBorderProps> = React.memo(
       <div
         style={{
           position: 'absolute',
-          inset: 0,
+          ...INSET_0,
           borderRadius: `${borderRadius}rem`,
           boxShadow: shadow,
           mixBlendMode: 'screen',

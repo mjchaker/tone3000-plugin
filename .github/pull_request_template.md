@@ -4,10 +4,10 @@
 
 ## Test plan
 
-CI does not run on pull requests. A maintainer can dispatch **Build Plugin** from the Actions tab when they want a full signed build. Run the local checks this PR can break:
+The **Checks** workflow runs on every pull request: UI lint, format, unit tests and build, plus the DSP GoogleTest suite on a headless Linux build. It does not compile the editor/webview or run host validators. A maintainer can dispatch **Build Plugin** from the Actions tab when they want a full signed build. Run the local checks this PR can break:
 
 - [ ] DSP: `./script/test-dsp.sh` (or N/A: no audio/chain/state change)
-- [ ] UI: `cd ui && npm run lint && npm run build` (or N/A: no `ui/` change)
+- [ ] UI: `cd ui && npm run lint && npm test && npm run build` (or N/A: no `ui/` change)
 - [ ] Host validators, if you touched the processor, editor, or plugin wrappers: `./script/validate-plugin.sh` ([pluginval](https://github.com/Tracktion/pluginval) strictness 10 for VST3/AU, clap-validator, lv2lint). AAX and Standalone are skipped by that script.
 - [ ] Host smoke (DAW + format + sample rate), if this is user-visible
 

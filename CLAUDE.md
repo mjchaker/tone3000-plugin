@@ -46,15 +46,19 @@ ctest --test-dir build                      # gtest_discover_tests registers eve
 
 cd ui
 npm run lint          # eslint src
+npm test              # vitest run (src/**/*.test.ts, typechecked by tsconfig.test.json)
 npm run format        # prettier --write; format:check for CI-style check
 npm run build         # doubles as the typecheck (tsc -b)
 npm run dev           # Vite at http://localhost:5173; layout/browsing only, no native bridge
 ```
 
 `./script/validate-plugin.sh [FORMAT] [Debug]` runs pluginval (strictness 10),
-clap-validator, and lv2lint against built artefacts. CI (`.github/workflows/build.yml`)
-is `workflow_dispatch` only and does not run on PRs, so the PR template expects
-the DSP tests, `npm run lint && npm run build`, and validators to be run locally.
+clap-validator, and lv2lint against built artefacts. On every PR,
+`.github/workflows/checks.yml` runs the UI checks (lint, format, vitest, build)
+and the DSP suite against a headless Linux build (X11 dev headers needed, no
+GTK/WebKit). The signed multi-platform build (`build.yml`) stays
+`workflow_dispatch` only, so the editor/webview build, validators and host
+smoke tests remain local steps.
 
 The GoogleTest target compiles the processor sources straight from `plugin/src/`
 with `HEADLESS=1` (no editor or webview), links NAM whole-archive, and points
@@ -65,6 +69,12 @@ with `HEADLESS=1` (no editor or webview), links NAM whole-archive, and points
 `T3KB` state format, plus block-tree builders with embedded model bytes so no
 test touches the network). Behavior changes to DSP or chain logic are expected
 to update the pinning test in the same commit.
+
+The per-block EQ is drawn by `ui/src/components/eqMath.ts`, a TypeScript mirror of
+`BlockEq.cpp`. Both are pinned to `test/files/eq_response_golden.json`:
+`BlockEqGoldenTest` measures the real filter with sines at 1x to 8x chain rates,
+`eqMath.test.ts` evaluates the mirror. Change the math on both sides together and
+regenerate with `cd ui && UPDATE_EQ_GOLDEN=1 npm test`.
 
 ## Architecture
 
@@ -116,7 +126,9 @@ Undo, redo, preset load, duplicate, paste, and DAW state restore all go through
 the same path: a settings-only `ValueTree` snapshot (tone JSON + params, never
 model bytes) is reconciled against the live lanes so blocks whose id/tone/model
 still match keep their loaded engines. Model bytes travel separately in a
-per-block cache; presets embed them so they load offline. Local files (drop or
+per-block cache; presets embed them so they load offline. Cache entries are
+immutable shared buffers: saves take references under `chainMutex` and copy the
+bytes only after releasing it, because the render thread blocks on that lock. Local files (drop or
 native picker) are wrapped in a synthetic tone JSON with `file://` model URLs and
 then ride the exact catalog pipeline; see `plugin/docs/local-models.md`.
 
@@ -157,7 +169,10 @@ to re-anchor these. Never edit `libs/` directly; it is gitignored and regenerate
   nothing paints an opaque panel over the root's `AMBIENT_BACKGROUND`.
 - **WebKit floor**: `vite.config.ts` pins `build.target` to `safari13` because the
   plugin runs in old system WebKits. Do not raise it or use syntax it cannot parse;
-  a parse error is a silent black window.
+  a parse error is a silent black window. The runtime floor is Safari 13.1, where
+  newer CSS is silently dropped: spread `INSET_0` (theme.ts) instead of `inset`
+  (`webkitFloor.test.ts` guards it), and flex `gap` works there only through
+  `flexGapShim.ts`, which rebuilds inline flex gaps as margins on engines that lack them.
 - **Comments over speculation**: the codebase explains the why of every
   non-obvious decision in a comment at the site. Match that; the PR template asks
   for no speculative fallbacks or dead code.

@@ -1,0 +1,94 @@
+# TONE3000 Plugin - pull request checks
+# The fast, unsigned half of the PR template's test plan: UI lint, format,
+# unit tests and typecheck/build, then the DSP GoogleTest suite against a
+# headless (no editor, no webview) build. The signed multi-platform build
+# stays dispatch-only in build.yml; host validators and DAW smoke tests
+# remain local steps.
+
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same PR supersedes the running check.
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: UI + DSP tests (Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # The DSP tests link juce_audio_processors, which pulls in
+      # juce_gui_basics' X11 headers even in a headless build. No GTK or
+      # WebKit: the editor is not compiled here.
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build \
+            ccache \
+            libasound2-dev \
+            libcurl4-openssl-dev \
+            libfontconfig1-dev \
+            libfreetype-dev \
+            libx11-dev \
+            libxcomposite-dev \
+            libxcursor-dev \
+            libxext-dev \
+            libxi-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libxrender-dev
+
+      - name: Restore compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-checks-${{ github.sha }}
+          restore-keys: ccache-checks-
+
+      # Configure first: CPM fetches JUCE into libs/, which ui/package.json
+      # depends on (file: dependency), so it must exist before npm ci.
+      - name: Configure (headless)
+        run: >
+          cmake -B build -S . -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DHEADLESS=ON
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: ui/package-lock.json
+
+      - name: UI checks
+        working-directory: ui
+        run: |
+          npm ci
+          npm run lint
+          npm run format:check
+          npm test
+          npm run build
+
+      - name: Build DSP tests
+        run: cmake --build build --target DspTests
+
+      - name: Run DSP tests
+        run: ./build/test/DspTests_artefacts/Release/DspTests --gtest_brief=1

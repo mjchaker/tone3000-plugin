@@ -65,6 +65,7 @@ import {
   segmentedCellStyle,
   segmentedGroupStyle,
   uiOffClass,
+  INSET_0,
 } from './theme';
 
 /** Tone artwork in the body's right panel (fits beside counts + creator). */
@@ -1088,7 +1089,7 @@ export const ChainBlock: React.FC<ChainBlockProps> = ({
                       <div
                         style={{
                           position: 'absolute',
-                          inset: 0,
+                          ...INSET_0,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',

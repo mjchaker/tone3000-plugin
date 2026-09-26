@@ -1,5 +1,5 @@
 import React from 'react';
-import { helpProps } from './helpText';
+import { helpName, helpProps } from './helpText';
 import { chromeIcon } from './ChromeIconButton';
 import {
   BLACK,
@@ -56,6 +56,8 @@ export const IconButton: React.FC<IconButtonProps> = ({
       disabled={disabled}
       className={glass ? GLASS_CLASS : undefined}
       {...helpProps(help)}
+      // Icon-only: the hint's name is the accessible name.
+      aria-label={helpName(help)}
       style={{
         ...iconButtonStyle(size),
         color: prominent ? BLACK : WHITE,

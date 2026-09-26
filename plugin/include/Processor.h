@@ -405,6 +405,8 @@ public:
 private:
   // One chain of blocks. Two of these make up `lanes` (declared below).
   using Lane = std::vector<std::unique_ptr<ChainBlock>>;
+  // Live blocks parked by id while a snapshot is reconciled against them.
+  using BlockPool = std::map<std::string, std::unique_ptr<ChainBlock>>;
 
   // Helper methods
   // Attenuation-only unit-energy gain for an IR file, matched to what the
@@ -651,14 +653,28 @@ private:
   // the full API payload (model URLs, tags, counts…) per block per sync is
   // waste.
   static juce::var makeToneSummary(const juce::var& toneVar);
+  // A block's settings node in a snapshot plus references to its cached
+  // model bytes, collected under chainMutex and embedded after it's released
+  // (see embedModelCaches).
+  struct PendingModelCache {
+    juce::ValueTree blockState;
+    std::map<int, ChainBlock::ModelBytes> models;
+  };
   static void serializeChainToTree(const std::vector<std::unique_ptr<ChainBlock>>& blocks,
-                                   juce::ValueTree& chainState, bool includeModelData);
+                                   juce::ValueTree& chainState,
+                                   std::vector<PendingModelCache>* pendingModels);
+  // Appends each pending block's ModelCache child (the byte copies). Call
+  // *without* chainMutex: this is the multi-MB part of a save, and the render
+  // thread blocks on that lock outside chain-edit fades.
+  static void embedModelCaches(const std::vector<PendingModelCache>& pendingModels);
 
   // Undo/redo internals (ProcessorHistory.cpp).
   // Snapshot both chains + stereo mode as a ValueTree. History snapshots stay
-  // settings-only; presets embed the model bytes so they load offline.
-  // Caller must hold chainMutex.
-  juce::ValueTree captureChainSnapshot(bool includeModelData = false) const;
+  // settings-only. Presets and DAW state embed the model bytes so they load
+  // offline: pass `pendingModels` to collect references to them, then call
+  // embedModelCaches after releasing the lock. Caller must hold chainMutex.
+  juce::ValueTree captureChainSnapshot(
+      std::vector<PendingModelCache>* pendingModels = nullptr) const;
   // Record the pre-mutation state before a chain edit. `coalesceKey` groups a
   // continuous gesture (knob/EQ drags) into a single undo step; pass an empty
   // string for discrete edits. Caller must hold chainMutex.
@@ -669,7 +685,9 @@ private:
   // background load. Caller must hold chainMutex, and must destroy the
   // returned retired blocks *after* releasing it (engine teardown is heavy).
   [[nodiscard]] Lane restoreChainSnapshot(const juce::ValueTree& snapshot);
-  void reconcileChainFromTree(const juce::ValueTree& chainState, Lane& target, Lane& retired);
+  // Rebuilds `target` from `chainState`, moving matching blocks out of
+  // `pool` (engines and model caches intact) and creating the rest.
+  void reconcileChainFromTree(const juce::ValueTree& chainState, Lane& target, BlockPool& pool);
   // Queue a background download+prepare of `block`'s active model, resolving
   // url/name from its tone JSON. Used by undo/redo when a restored block's
   // model isn't cached in memory anymore. When the model can't even be
@@ -686,7 +704,7 @@ private:
   // like duplicate. Guarded by chainMutex; in-memory only (deliberately not
   // part of the DAW session state).
   juce::ValueTree blockClipboardSettings;
-  std::map<int, std::vector<uint8_t>> blockClipboardModelCache;
+  std::map<int, ChainBlock::ModelBytes> blockClipboardModelCache;
 
   // MIDI performance handlers (wired to midiMapper in the constructor,
   // both invoked on the message thread).
@@ -956,6 +974,14 @@ private:
   void parameterChanged(const juce::String& parameterID, float newValue) override;
   void handleAsyncUpdate() override;
   void applyOversamplingSettings();
+
+  // A NAM engine is built for one oversampling factor (its phase count) and
+  // can't be re-prepared into another. Every audible or loading NAM block
+  // whose engine doesn't match the live factor drops to dry passthrough;
+  // idle ones queue a cache-first rebuild, in-flight ones are re-queued by
+  // the apply path's factor-drift guard. Returns true when any block
+  // changed. Caller holds chainMutex.
+  bool requeueNamEnginesForChainFactor();
 
   // Per-block cached values (refreshed once per processBlock from paramRefs).
   float cacheInputLevel = 0.5f;

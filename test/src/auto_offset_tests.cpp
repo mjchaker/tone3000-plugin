@@ -349,4 +349,49 @@ TEST(AutoOffsetTest, ProbeAlignsRealNamAndIrChains) {
   EXPECT_NEAR(static_cast<double>(second["matchedMs"]), firstMs, 0.1 * 1000.0 / kFs);
 }
 
+TEST(AutoOffsetTest, AnOrphanedProbeHoldsTheMuteUntilCancelled) {
+  // Only a poll collects a finished probe and unmutes, so a probe nobody
+  // polls (the editor closed mid-run) keeps the output silent for good.
+  // The editor's destructor relies on cancelAutoOffset() getting out of
+  // that state: it must unmute from a capture that was never analyzed, and
+  // leave the machine free to arm again.
+  ChainTestProcessor proc;
+  proc.setPlayConfigDetails(2, 2, kFs, kBlock);
+  proc.prepareToPlay(kFs, kBlock);
+  seedStereoChains(proc, {}, {});
+  ASSERT_TRUE(waitForChainLoaded(proc));
+
+  const auto sine = makeSine(kBlock, 1000.0, 0.25f);
+  juce::AudioBuffer<float> buffer(2, kBlock);
+  juce::MidiBuffer midi;
+  auto renderPeak = [&] {
+    buffer.copyFrom(0, 0, sine.data(), kBlock);
+    buffer.copyFrom(1, 0, sine.data(), kBlock);
+    proc.processBlock(buffer, midi);
+    return buffer.getMagnitude(0, kBlock);
+  };
+
+  float reference = 0.0f;
+  for (int block = 0; block < 50; ++block)
+    reference = renderPeak();
+  ASSERT_GT(reference, 0.05f);
+
+  // ~2 s with no poll: the probe finished long ago and the mute holds.
+  proc.startAutoOffset();
+  for (int block = 0; block < 200; ++block) {
+    const float peak = renderPeak();
+    if (block >= 100)
+      ASSERT_EQ(peak, 0.0f) << "orphaned probe unmuted by itself at block " << block;
+  }
+
+  proc.cancelAutoOffset();
+  float after = 0.0f;
+  for (int block = 0; block < 5; ++block)
+    after = renderPeak();
+  EXPECT_NEAR(after, reference, 0.05f * reference) << "cancel did not restore the output";
+
+  const juce::var rerun = runProbe(proc);
+  EXPECT_TRUE(rerun.isObject()) << "auto offset would not arm again after the cancel";
+}
+
 }  // namespace

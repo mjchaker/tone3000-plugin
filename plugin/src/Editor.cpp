@@ -198,6 +198,13 @@ TONE3000Editor::~TONE3000Editor() {
   // send the disables itself on teardown).
   processor.setTunerEnabled(false);
   processor.disableAllBlockSpectrums();
+  // Same for a running auto measurement: only the UI's poll collects the
+  // result, and auto offset keeps the output muted until it does, so a
+  // probe orphaned here would leave the plugin silent until the editor
+  // reopened and [=] was pressed again. Nobody is watching the result, so
+  // discard it. (Auto balance would just sit idle, but gets the same.)
+  processor.cancelAutoOffset();
+  processor.cancelAutoBalance();
   if (mainWebView) {
     removeChildComponent(mainWebView.get());
     mainWebView.reset();

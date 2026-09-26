@@ -27,6 +27,8 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <vector>
 
 namespace {
@@ -307,6 +309,45 @@ TEST(ProcessorTest, IgnoresGarbageLegacyAndNewerSchemaState) {
   }
   proc.setStateInformation(reframed.getData(), static_cast<int>(reframed.getSize()));
   EXPECT_NEAR(inputLevel(), 0.7f, 1e-5f) << "state from a newer schema must be ignored";
+}
+
+// One NaN or Inf from the host or an upstream plugin must not reach the
+// output. Unchecked it did in every case here, and with oversampling on
+// the allpasses held it: NaN, then silence, for the rest of the session.
+// Every output sample must stay finite, and the signal must come back.
+TEST(ProcessorTest, NonFiniteInputNeverReachesTheOutput) {
+  struct Case {
+    double hostRate;
+    bool gate;
+    bool oversample;
+  };
+  for (const Case c : {Case{kFs, true, false}, Case{kFs, false, true}, Case{kFs, true, true},
+                       Case{44100.0, true, true}}) {
+    SCOPED_TRACE(juce::String(c.hostRate, 0) + " Hz, gate " + (c.gate ? "on" : "off") +
+                 ", oversampling " + (c.oversample ? "x2" : "off"));
+    TONE3000Processor proc;
+    proc.setPlayConfigDetails(2, 2, c.hostRate, 512);
+    proc.parameters.getParameter("gateEnabled")->setValueNotifyingHost(c.gate ? 1.0f : 0.0f);
+    proc.parameters.getParameter("osEnabled")->setValueNotifyingHost(c.oversample ? 1.0f : 0.0f);
+    proc.prepareToPlay(c.hostRate, 512);
+
+    auto in = makeSine(512 * 200, 220.0, 0.25f, c.hostRate);
+    in[20000] = std::numeric_limits<float>::quiet_NaN();
+    in[30000] = std::numeric_limits<float>::infinity();
+    const auto out = processThrough(proc, in, 512);
+
+    size_t firstBad = out.size();
+    for (size_t i = 0; i < out.size() && firstBad == out.size(); ++i)
+      if (!std::isfinite(out[i]))
+        firstBad = i;
+    EXPECT_EQ(firstBad, out.size()) << "non-finite output from sample " << firstBad;
+
+    // The signal is back at its level once the sanitized samples decay.
+    float peak = 0.0f;
+    for (size_t i = out.size() - 8192; i < out.size(); ++i)
+      peak = std::max(peak, std::abs(out[i]));
+    EXPECT_GT(peak, 0.01f) << "output stayed silent";
+  }
 }
 
 TEST(ProcessorTest, TailReportCoversDcBlockerWithEmptyChain) {

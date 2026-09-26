@@ -17,6 +17,7 @@ juce_add_console_app(DspTests PRODUCT_NAME "DspTests")
 
 target_sources(DspTests PRIVATE
     src/auto_offset_tests.cpp
+    src/block_eq_tests.cpp
     src/branch_tests.cpp
     src/clipboard_tests.cpp
     src/dsp_tests.cpp
@@ -25,9 +26,11 @@ target_sources(DspTests PRIVATE
     src/local_load_tests.cpp
     src/midi_map_tests.cpp
     src/multicore_tests.cpp
+    src/oversampling_switch_tests.cpp
     src/preset_tests.cpp
     src/processor_tests.cpp
     src/spread_tests.cpp
+    src/state_save_tests.cpp
     src/swap_fade_tests.cpp
     src/tone_refresh_tests.cpp
     src/tuner_tests.cpp

@@ -286,6 +286,12 @@ std::string TONE3000Processor::loadTone(const juce::String& toneJsonString,
   // which is only known after download; the first successful apply sets it
   // (see applyPreparedModelToChainBlock).
   block->applyDefaultMixOnLoad = true;
+  // prepareChain only covers blocks that existed at prepareToPlay. Without
+  // this the EQ and analyzer keep their 48 kHz defaults, and under x8
+  // oversampling a bell dialed at 1 kHz lands at 8 kHz. (Duplicate, paste
+  // and undo get the same via applyBlockSettings.)
+  block->eq.prepare(chainSampleRate());
+  block->spectrum.prepare(chainSampleRate());
 
   DBG("Created tone block: " << parsed.toneId << " (block: " << blockId << ")");
   DBG("Queueing first model for background loading: " << parsed.modelName);
@@ -398,8 +404,9 @@ bool TONE3000Processor::copyChainBlock(const std::string& blockId) {
 
   // A self-contained snapshot, not a reference: the same per-block tree the
   // undo/preset paths persist, plus the in-memory model bytes so a later
-  // paste comes up offline. Copying never touches the chain, so no history
-  // entry; the revision bump only publishes `canPasteBlock` to the UI.
+  // paste comes up offline (shared, but cache entries are immutable, so
+  // nothing in the live chain can change them under the clipboard). Copying never touches the
+  // chain, so no history entry; the revision bump only publishes `canPasteBlock` to the UI.
   blockClipboardSettings = serializeBlockSettings(*source);
   blockClipboardModelCache = source->modelCache;
 
@@ -807,7 +814,6 @@ void TONE3000Processor::loadToneInBackground(const std::string& blockId, int fir
       return;
     }
 
-    block->modelCache[firstModelId] = modelData;
     namSlimSize = block->namSlimSize;
   }
 
@@ -829,6 +835,13 @@ void TONE3000Processor::loadToneInBackground(const std::string& blockId, int fir
       DBG("[Background] Block not found after prepare: " << blockId);
       return;
     }
+
+    // Cache only bytes that prepared: retry reads the cache first, so a
+    // cached error page or truncated body would fail every retry, and
+    // presets/project saves would embed it.
+    if (prepared.success)
+      block->modelCache[firstModelId] =
+          std::make_shared<const std::vector<uint8_t>>(std::move(modelData));
 
     if (block->activeModelId != firstModelId) {
       // Superseded by a newer switch/swap while this one loaded; that job
@@ -853,7 +866,9 @@ void TONE3000Processor::switchModelInBackground(const std::string& blockId, int 
                                                 const juce::String& modelName) {
   DBG("[Background] Switching model for block: " << blockId << " to model ID: " << modelId);
 
-  std::vector<uint8_t> modelData;
+  // Shared with the cache: a cache hit takes a reference under chainMutex
+  // instead of copying the bytes while holding it.
+  ChainBlock::ModelBytes modelData;
   bool needsFetch = false;
   ChainBlockType blockTypeForPrepare = ChainBlockType::NAM;
   double namSlimSize = 0.0;
@@ -890,9 +905,9 @@ void TONE3000Processor::switchModelInBackground(const std::string& blockId, int 
 
   if (needsFetch) {
     DBG("[Background] Fetching model from URL: " << modelUrl);
-    modelData = fetchModelFromUrl(modelUrl);
+    modelData = std::make_shared<const std::vector<uint8_t>>(fetchModelFromUrl(modelUrl));
 
-    if (modelData.empty()) {
+    if (modelData->empty()) {
       DBG("[Background] Failed to fetch model from URL");
       markBlockLoadFailed(blockId);
       return;
@@ -900,14 +915,14 @@ void TONE3000Processor::switchModelInBackground(const std::string& blockId, int 
   } else {
     // Local-model stash upkeep for cache-hit loads (fetches do their own in
     // fetchModelFromUrl); no-op for catalog URLs.
-    refreshLocalStashCopy(modelUrl, modelData);
+    refreshLocalStashCopy(modelUrl, *modelData);
   }
 
   const juce::String filename =
       modelName + (blockTypeForPrepare == ChainBlockType::NAM ? ".nam" : ".wav");
 
   PreparedBlockModel prepared =
-      prepareBlockModelOffThread(blockTypeForPrepare, modelData, filename, namSlimSize);
+      prepareBlockModelOffThread(blockTypeForPrepare, *modelData, filename, namSlimSize);
   const bool applied = prepared.success;
 
   // The outgoing model keeps processing until this moment; fade it out on
@@ -927,7 +942,9 @@ void TONE3000Processor::switchModelInBackground(const std::string& blockId, int 
       return;
     }
 
-    if (needsFetch) {
+    // Only bytes that prepared (see loadToneInBackground): cached junk
+    // would make every retry fail from the cache.
+    if (needsFetch && prepared.success) {
       block->modelCache[modelId] = modelData;
     }
 

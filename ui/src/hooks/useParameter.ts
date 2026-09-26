@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAudioBackend } from './useAudioBackend';
 import type { ParameterType, ParameterMap, ParameterValueType } from '../types/IAudioBackend';
 
@@ -25,7 +25,14 @@ export function useParameter<T extends ParameterType>(
   type: T
 ): [ParameterValueType[T], (value: ParameterValueType[T]) => void, (dragging: boolean) => void] {
   const backend = useAudioBackend();
-  const param = backend.getParameterState(identifier, type) as Parameter<T>;
+  // getParameterState wraps JUCE's cached state in a fresh adapter per call.
+  // Unmemoized, every render re-ran the subscribe effect below: listeners
+  // torn down and re-added and a requestInitialUpdate round trip, at
+  // pointer-move rate while an owning knob drags.
+  const param = useMemo(
+    () => backend.getParameterState(identifier, type) as Parameter<T>,
+    [backend, identifier, type]
+  );
   const [value, setValue] = useState<ParameterValueType[T]>(() => readCurrent(param));
   const draggingRef = useRef(false);
   const lastSentRef = useRef<ParameterValueType[T]>(value);

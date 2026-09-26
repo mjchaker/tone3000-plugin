@@ -20,7 +20,7 @@ import type { DragEndEvent } from '@dnd-kit/react';
 import type { ActivePreset, PresetInfo } from '../types/chain';
 import { useDismissable } from '../hooks/useDismissable';
 import { useToast } from './Toast';
-import { HELP, helpProps } from './helpText';
+import { HELP, helpName, helpProps } from './helpText';
 import {
   FONT_MONO,
   GLASS_BORDER,
@@ -158,10 +158,15 @@ const PresetRow: React.FC<PresetRowProps> = ({
       {isRenaming ? (
         <input
           autoFocus
+          aria-label={`New name for ${preset.name}`}
           value={renameValue}
           onChange={(e) => onRenameChange(e.target.value)}
           onBlur={onCommitRename}
           onKeyDown={(e) => {
+            // The browser's Escape-to-close listens on document; keep this
+            // field's keys to itself so Escape cancels just the rename
+            // (same as the knob and EQ value editors).
+            e.stopPropagation();
             if (e.key === 'Enter') onCommitRename();
             if (e.key === 'Escape') onCancelRename();
           }}
@@ -225,6 +230,7 @@ const PresetRow: React.FC<PresetRowProps> = ({
           <>
             <button
               onClick={onStartRename}
+              aria-label={`${helpName(HELP.presetRename)} ${preset.name}`}
               {...helpProps(HELP.presetRename)}
               style={{ ...iconButtonStyle, padding: '3rem' }}
             >
@@ -232,6 +238,7 @@ const PresetRow: React.FC<PresetRowProps> = ({
             </button>
             <button
               onClick={onDelete}
+              aria-label={`${helpName(HELP.presetDelete)} ${preset.name}`}
               {...helpProps(HELP.presetDelete)}
               style={{ ...iconButtonStyle, padding: '3rem' }}
             >
@@ -457,7 +464,12 @@ export const PresetBar: React.FC<PresetBarProps> = ({
           flexShrink: 0,
         }}
       >
-        <button onClick={() => step(-1)} {...helpProps(HELP.presetPrev)} style={chevronStyle}>
+        <button
+          onClick={() => step(-1)}
+          aria-label={helpName(HELP.presetPrev)}
+          {...helpProps(HELP.presetPrev)}
+          style={chevronStyle}
+        >
           <ChevronLeft size={14} />
         </button>
         <button
@@ -484,7 +496,12 @@ export const PresetBar: React.FC<PresetBarProps> = ({
         >
           {active?.name ?? 'Presets'}
         </button>
-        <button onClick={() => step(1)} {...helpProps(HELP.presetNext)} style={chevronStyle}>
+        <button
+          onClick={() => step(1)}
+          aria-label={helpName(HELP.presetNext)}
+          {...helpProps(HELP.presetNext)}
+          style={chevronStyle}
+        >
           <ChevronRight size={14} />
         </button>
         <span
@@ -500,6 +517,7 @@ export const PresetBar: React.FC<PresetBarProps> = ({
         {/* Save */}
         <button
           onClick={openSave}
+          aria-label={helpName(HELP.presetSave)}
           {...helpProps(HELP.presetSave)}
           style={{ ...iconButtonStyle, color: MUTED }}
         >
@@ -594,6 +612,7 @@ export const PresetBar: React.FC<PresetBarProps> = ({
               <button
                 onClick={() => setPresetPcNumbersEnabled(!showPcNumbers)}
                 aria-pressed={showPcNumbers}
+                aria-label={helpName(HELP.presetPcToggle)}
                 {...helpProps(HELP.presetPcToggle)}
                 style={{
                   ...iconButtonStyle,
@@ -610,6 +629,7 @@ export const PresetBar: React.FC<PresetBarProps> = ({
               <button
                 onClick={() => setReordering((prev) => !prev)}
                 aria-pressed={reordering}
+                aria-label={helpName(HELP.presetReorder)}
                 {...helpProps(HELP.presetReorder)}
                 style={{
                   ...iconButtonStyle,

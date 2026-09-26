@@ -122,6 +122,15 @@ bool BlockEq::isBandActive(const Band& band) {
 }
 
 BlockEq::Band BlockEq::clampBand(Band band) {
+  // NaN passes jlimit untouched and would poison the biquad for good; a
+  // non-finite field falls back to the neutral band's value instead.
+  const Band neutral;
+  if (!std::isfinite(band.freqHz))
+    band.freqHz = neutral.freqHz;
+  if (!std::isfinite(band.gainDb))
+    band.gainDb = neutral.gainDb;
+  if (!std::isfinite(band.q))
+    band.q = neutral.q;
   band.freqHz = juce::jlimit(kMinFreqHz, kMaxFreqHz, band.freqHz);
   band.gainDb = juce::jlimit(-kMaxAbsGainDb, kMaxAbsGainDb, band.gainDb);
   band.q = juce::jlimit(kMinQ, kMaxQ, band.q);
@@ -129,7 +138,8 @@ BlockEq::Band BlockEq::clampBand(Band band) {
 }
 
 // RBJ Audio EQ Cookbook coefficients, A = 10^(dB/40). Keep in exact sync with
-// the TypeScript mirror in ui/src/components/eqMath.ts.
+// the TypeScript mirror in ui/src/components/eqMath.ts; both are pinned to
+// test/files/eq_response_golden.json (BlockEqGoldenTest / eqMath.test.ts).
 void BlockEq::updateBand(int index) {
   const Band& band = bands[static_cast<size_t>(index)];
   Biquad& f = filters[static_cast<size_t>(index)];
@@ -191,11 +201,11 @@ void BlockEq::updateBand(int index) {
   }
 
   const double norm = 1.0 / a0;
-  f.b0 = static_cast<float>(b0 * norm);
-  f.b1 = static_cast<float>(b1 * norm);
-  f.b2 = static_cast<float>(b2 * norm);
-  f.a1 = static_cast<float>(a1 * norm);
-  f.a2 = static_cast<float>(a2 * norm);
+  f.b0 = b0 * norm;
+  f.b1 = b1 * norm;
+  f.b2 = b2 * norm;
+  f.a1 = a1 * norm;
+  f.a2 = a2 * norm;
 }
 
 void BlockEq::updateActivity() {

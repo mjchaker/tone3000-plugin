@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RotateCcw, X } from './icons';
 import { useMidiMap } from '../hooks/useMidiMap';
 import type { MidiMapping } from '../types/midiMap';
@@ -263,6 +263,20 @@ export const MidiMapSettings: React.FC<{
     const timeout = setTimeout(() => actions.cancelLearn(), LEARN_TIMEOUT_MS);
     return () => clearTimeout(timeout);
   }, [learnTargetId, ccDraft, actions]);
+
+  // The learn lives in the processor and outlives this view: closing
+  // Settings mid-learn (which also clears the timeout above) left it armed,
+  // and the next stray CC or note silently remapped the target. Disarm on
+  // unmount; refs keep the cleanup reading the latest values.
+  const armedLearnRef = useRef({ learnTargetId, actions });
+  armedLearnRef.current = { learnTargetId, actions };
+  useEffect(
+    () => () => {
+      const { learnTargetId: armed, actions: latest } = armedLearnRef.current;
+      if (armed) void latest.cancelLearn();
+    },
+    []
+  );
 
   // Commit a typed CC for the armed target: the engine replaces the mapping
   // and disarms the learn. Out-of-range numbers are ignored (the input is

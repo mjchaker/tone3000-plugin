@@ -61,6 +61,16 @@ they get a single instance run time-scaled at the full chain rate. (A
 defensive path in practice: the catalog and the local-file gate only admit
 A2 WaveNets, which are always phase-safe.)
 
+Because the phase count is baked in when the engine is built, a NAM engine
+can't follow a factor change by re-preparing; it has to be rebuilt.
+`requeueNamEnginesForChainFactor` runs on both paths that move the factor:
+the live toggle (`applyOversamplingSettings`) and `prepareToPlay`, which a
+host restoring an oversampled session can reach before the parameter
+listener's async apply does. Mismatched engines drop to dry passthrough while
+they rebuild from the block's model cache.
+`OversamplingSwitchTest.PrepareToPlayRebuildsEnginesBuiltForAnotherFactor`
+pins that a rig re-prepared from ×1 to ×4 matches one built at ×4.
+
 ## IR islands
 
 Convolution is linear: it creates no harmonics, so oversampling an IR buys

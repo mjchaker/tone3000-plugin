@@ -64,6 +64,14 @@ const readDirectoryFiles = async (root: FileSystemDirectoryEntry): Promise<File[
   return files;
 };
 
+/** A picked tone had no model the plugin can load (e.g. no A2 NAM captures). */
+export class ToneHasNoModelsError extends Error {
+  constructor() {
+    super('Tone has no loadable models');
+    this.name = 'ToneHasNoModelsError';
+  }
+}
+
 interface UseToneLoadFlowOptions {
   actions: ChainStateActions;
   stereoEnabled: boolean;
@@ -89,10 +97,9 @@ export function useToneLoadFlow({
   // tone at the remembered insert slot.
   const handleToneSelected = useCallback(
     async (tone: Tone & { models: Model[] }) => {
-      if (!tone.models || tone.models.length === 0) {
-        console.error('Tone has no models');
-        return;
-      }
+      // Thrown, not just logged: the browser stays open on this path, so the
+      // picking card must hear about it to stop spinning.
+      if (!tone.models || tone.models.length === 0) throw new ToneHasNoModelsError();
 
       // Consume the pending targets up front so they can never leak into a
       // later selection. (Each flow clears the other's key before starting.)

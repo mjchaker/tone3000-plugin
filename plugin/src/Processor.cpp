@@ -6,6 +6,8 @@
 #include <random>
 #include <cstring>
 #include <tuple>
+#include <bit>
+#include <cstdint>
 
 // StandalonePluginHolder: used to inspect the audio device's active channels
 // so we can detect a mono input or output (see standaloneMonoInput /
@@ -13,6 +15,24 @@
 #if !HEADLESS && JucePlugin_Build_Standalone && ! JUCE_USE_CUSTOM_PLUGIN_STANDALONE_APP
 #include <juce_audio_plugin_client/Standalone/juce_StandaloneFilterWindow.h>
 #endif
+
+namespace {
+// Replaces NaN/Inf samples with 0; returns whether any were found. Recursive
+// stages feed a non-finite sample back into their own state: through the
+// oversampler's allpasses one NaN from the host turned the output to NaN
+// and then silence for the rest of the session. Tests the exponent bits
+// rather than std::isfinite, which -ffinite-math-only would compile away.
+bool zeroNonFinite(float* samples, int numSamples) noexcept {
+  bool found = false;
+  for (int i = 0; i < numSamples; ++i) {
+    if ((std::bit_cast<std::uint32_t>(samples[i]) & 0x7f800000u) == 0x7f800000u) {
+      samples[i] = 0.0f;
+      found = true;
+    }
+  }
+  return found;
+}
+}  // namespace
 
 // ##############
 // MAIN PROCESSOR
@@ -326,19 +346,37 @@ void TONE3000Processor::applyOversamplingSettings() {
   // IR blocks need nothing here: their convolvers run at the base rate
   // behind per-block islands (re-prepared by prepareChain above), so neither
   // the kernel nor the tail report moves with the factor.
+  requeueNamEnginesForChainFactor();
+
+  bumpChainRevision();
+}
+
+bool TONE3000Processor::requeueNamEnginesForChainFactor() {
+  const int factor = chainOversampleFactor.load();
+  bool changed = false;
   for (auto& l : lanes) {
     for (auto& block : l) {
-      if (block->type == ChainBlockType::NAM && block->loaded && !block->modelLoading) {
-        // In-flight loads are left alone: the apply path's factor-drift guard
-        // re-queues them itself.
-        block->loaded = false;
+      if (block->type != ChainBlockType::NAM || block->namEngine == nullptr ||
+          block->namEngine->getOversampleFactor() == factor)
+        continue;
+      // A failed block isn't processed and reloads (at the live factor) on
+      // retry; leave its retry state alone.
+      if (!block->loaded && !block->modelLoading)
+        continue;
+      // Silence the mismatched engine now, including a block still playing
+      // its previous engine while a model switch downloads: it would run at
+      // the wrong rate until that load lands. An in-flight load is not
+      // re-queued; if it prepared with the old factor, the apply path's
+      // factor-drift guard re-queues it.
+      block->loaded = false;
+      if (!block->modelLoading) {
         block->modelLoading = true;
         queueActiveModelLoad(*block);
       }
+      changed = true;
     }
   }
-
-  bumpChainRevision();
+  return changed;
 }
 
 TONE3000Processor::~TONE3000Processor() {
@@ -719,6 +757,13 @@ void TONE3000Processor::prepareToPlay(double sampleRate, int samplesPerBlock) {
     juce::ScopedLock lock(chainMutex);
     for (auto& l : lanes)
       prepareChain(l);
+    // prepareChain re-sizes NAM engines but can't change their phase count.
+    // When this prepare moved the factor (a host restoring an oversampled
+    // session re-prepares before the parameter listener's async apply runs,
+    // and that apply then sees no change and returns early), engines built
+    // for the old factor would keep running at the new rate. Rebuild them.
+    if (requeueNamEnginesForChainFactor())
+      bumpChainRevision();
   }
 
   juce::dsp::ProcessSpec spec{sampleRate, static_cast<juce::uint32>(samplesPerBlock), 2};
@@ -855,15 +900,17 @@ void TONE3000Processor::updateEqCoefficients() {
   const float midDb = 3.0f * (cacheMidTone - 5.0f);
   const float trebleDb = 2.0f * (cacheTrebleTone - 5.0f);
 
-  *bassFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowShelf(
-      rate, clampBelowNyquist(rate, 150.0f), 0.707f,
-      juce::Decibels::decibelsToGain(bassDb));
-  *midFilter.state = *juce::dsp::IIR::Coefficients<float>::makePeakFilter(
-      rate, clampBelowNyquist(rate, 425.0f), midDb < 0.0f ? 1.5f : 0.7f,
-      juce::Decibels::decibelsToGain(midDb));
-  *trebleFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf(
-      rate, clampBelowNyquist(rate, 1800.0f), 0.707f,
-      juce::Decibels::decibelsToGain(trebleDb));
+  // Runs on the audio thread when a tone knob moves. The Coefficients::make*
+  // factories heap-allocate a new object per call; ArrayCoefficients returns
+  // the same numbers by value, and assigning them reuses the state's storage.
+  using Arrays = juce::dsp::IIR::ArrayCoefficients<float>;
+  *bassFilter.state = Arrays::makeLowShelf(rate, clampBelowNyquist(rate, 150.0f), 0.707f,
+                                           juce::Decibels::decibelsToGain(bassDb));
+  *midFilter.state =
+      Arrays::makePeakFilter(rate, clampBelowNyquist(rate, 425.0f), midDb < 0.0f ? 1.5f : 0.7f,
+                             juce::Decibels::decibelsToGain(midDb));
+  *trebleFilter.state = Arrays::makeHighShelf(rate, clampBelowNyquist(rate, 1800.0f), 0.707f,
+                                              juce::Decibels::decibelsToGain(trebleDb));
 }
 
 // ######################
@@ -1065,12 +1112,19 @@ void TONE3000Processor::processChainOnBuffer(std::vector<std::unique_ptr<ChainBl
           continue;
         }
 
-        // Calculate additional calibration gain for this specific NAM block
+        // Calculate additional calibration gain for this specific NAM block.
+        // The model's input level is file metadata (local .nam files are
+        // arbitrary), so it gets the same sanity range as the output level
+        // below: a junk -500 dBu was a +512 dB gain into the model.
         float calibrationGain = 1.0f;
         if (cacheCalibrateInput && block->namEngine->hasInputLevel()) {
           const double modelInputLevel = block->namEngine->getInputLevel();
-          const double calibrationAdjustmentDb = cacheInputCalibrationLevel - modelInputLevel;
-          calibrationGain = juce::Decibels::decibelsToGain(static_cast<float>(calibrationAdjustmentDb));
+          if (std::isfinite(modelInputLevel) && modelInputLevel >= -60.0 &&
+              modelInputLevel <= 60.0) {
+            const double calibrationAdjustmentDb = cacheInputCalibrationLevel - modelInputLevel;
+            calibrationGain =
+                juce::Decibels::decibelsToGain(static_cast<float>(calibrationAdjustmentDb));
+          }
         }
 
         // Apply calibration gain to the buffer
@@ -1689,6 +1743,24 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
         chainBoundary->ProcessBlock(channels, channels, sliceLen, chainStageFunc);
       else
         processOversampledChainStage(channels, channels, sliceLen);
+
+      // A NaN/Inf here came from the host or an upstream plugin, or was made
+      // inside the chain (a model blowing up). Never hand it to the
+      // post-chain stages or the host, and clear the chain's own recursive
+      // state (oversampler allpasses, block EQs) so the chain recovers once
+      // its FIR stages (boundary kernel, NAM receptive field, IR length)
+      // have flushed the bad sample. The stages ahead of the chain need no
+      // check of their own: the gate's envelope recovers by itself, and
+      // the tuner reads through a ring buffer.
+      // `|`, not `||`: both channels must be cleaned.
+      const bool chainBlewUp =
+          zeroNonFinite(channels[0], sliceLen) | zeroNonFinite(channels[1], sliceLen);
+      if (chainBlewUp) {
+        chainOversampler.reset();
+        for (auto& l : lanes)
+          for (auto& block : l)
+            block->eq.resetState();
+      }
 
       // Image stage per slice: on a mono host buffer the scratch channel
       // only holds the Right lane's output for this slice, so it must be

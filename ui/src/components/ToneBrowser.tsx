@@ -19,6 +19,7 @@ import { BusyOverlay, LoadingDots } from './LoadingDots';
 import { HELP, helpProps } from './helpText';
 import { EDGE_FADE_WIDTH } from './GalleryLane';
 import { useHorizontalWheelScroll } from '../hooks/useHorizontalWheelScroll';
+import { ToneHasNoModelsError } from '../hooks/useToneLoadFlow';
 import { CARD_WIDTH } from './chainLayout';
 import { T3kMark } from './T3kMark';
 import {
@@ -641,7 +642,11 @@ export const ToneBrowser: React.FC<ToneBrowserProps> = ({
         await onPickTone(toneId);
       } catch (err) {
         console.error('Failed to load picked tone', err);
-        setPickError('Failed to load that tone. Please try again.');
+        setPickError(
+          err instanceof ToneHasNoModelsError
+            ? 'That tone has no models this plugin can load.'
+            : 'Failed to load that tone. Please try again.'
+        );
         setPickingId(null);
       }
     },

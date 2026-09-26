@@ -70,7 +70,7 @@ const clipGroup = (id: string): string[] => {
   return [id];
 };
 
-class MeterStore {
+export class MeterStore {
   private levels = new Map<string, number>();
   /** Spread output correlation (-1..1, 1 when idle), quantized (see below). */
   private correlation = 1;
@@ -84,6 +84,11 @@ class MeterStore {
   private listeners = new Map<string, Set<() => void>>();
   private subscriberCount = 0;
   private running = false;
+  /** Identifies the live poll loop. stop() only flags; a loop parked in an
+      await or a pending rAF must see a restart as its own end, or a quick
+      unsubscribe/resubscribe (StrictMode, both main meters remounting in
+      one commit) leaves two loops polling the bridge. */
+  private loopGeneration = 0;
   private fetchLevels: () => Promise<MeterLevels | null>;
 
   constructor(fetchLevels: () => Promise<MeterLevels | null>) {
@@ -125,26 +130,29 @@ class MeterStore {
 
   private start() {
     this.running = true;
+    const generation = ++this.loopGeneration;
+    const live = () => this.running && generation === this.loopGeneration;
     let lastFetch = 0;
     const tick = async () => {
-      if (!this.running) return;
+      if (!live()) return;
       const now = performance.now();
       if (now - lastFetch >= MIN_FETCH_INTERVAL_MS) {
         lastFetch = now;
         try {
           const res = await this.fetchLevels();
-          if (res && this.running) this.apply(res);
+          if (res && live()) this.apply(res);
         } catch {
           // Backend not ready yet; keep polling.
         }
       }
-      if (this.running) requestAnimationFrame(tick);
+      if (live()) requestAnimationFrame(tick);
     };
     tick();
   }
 
   private stop() {
     this.running = false;
+    this.loopGeneration++;
   }
 
   private apply(res: MeterLevels) {

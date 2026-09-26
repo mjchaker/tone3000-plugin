@@ -1,7 +1,7 @@
 import React from 'react';
 import type { OAuthPhase } from '../hooks/useT3kSelect';
 import { LoadingDots } from './LoadingDots';
-import { filledPillButtonStyle, pillButtonStyle } from './theme';
+import { filledPillButtonStyle, pillButtonStyle, INSET_0 } from './theme';
 
 interface OAuthOverlayProps {
   phase: OAuthPhase;
@@ -29,7 +29,7 @@ export const OAuthOverlay: React.FC<OAuthOverlayProps> = ({ phase, error, onRetr
       aria-live="polite"
       style={{
         position: 'absolute',
-        inset: 0,
+        ...INSET_0,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         backdropFilter: 'blur(4rem)',
         WebkitBackdropFilter: 'blur(4rem)',

@@ -1,5 +1,5 @@
 import React from 'react';
-import { helpProps } from './helpText';
+import { helpName, helpProps } from './helpText';
 import {
   BLACK,
   BRAND_YELLOW,
@@ -138,6 +138,10 @@ export const ChromeIconButton: React.FC<ChromeIconButtonProps> = ({
     disabled={disabled}
     className={GLASS_CLASS}
     {...helpProps(help)}
+    // Icon-only: the hint's name is the accessible name, and the on/off
+    // tones are toggles, so their state is announced too.
+    aria-label={helpName(help)}
+    aria-pressed={tone === 'plain' ? undefined : on}
     style={{
       ...iconButtonStyle(ICON_BOX_SIZE),
       // Grid on the button itself: one centering context, no nested span.

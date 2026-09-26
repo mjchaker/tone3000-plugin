@@ -2,7 +2,14 @@ import React, { useMemo } from 'react';
 import DOMPurify from 'dompurify';
 import { X } from './icons';
 import type { UpdateNoticeData } from '../hooks/useUpdateNotice';
-import { MUTED, RADIUS_SHEET, filledPillButtonStyle, glassStyle, iconButtonStyle } from './theme';
+import {
+  MUTED,
+  RADIUS_SHEET,
+  filledPillButtonStyle,
+  glassStyle,
+  iconButtonStyle,
+  INSET_0,
+} from './theme';
 
 interface UpdateNoticeProps {
   notice: UpdateNoticeData | null;
@@ -55,7 +62,7 @@ export const UpdateNotice: React.FC<UpdateNoticeProps> = ({ notice, onRemindLate
       aria-label="Plugin update available"
       style={{
         position: 'absolute',
-        inset: 0,
+        ...INSET_0,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         backdropFilter: 'blur(4rem)',
         WebkitBackdropFilter: 'blur(4rem)',

@@ -1,6 +1,6 @@
 import React from 'react';
 import * as Juce from '@juce-framework/webview';
-import { MUTED, filledPillButtonStyle, pillButtonStyle } from './theme';
+import { MUTED, filledPillButtonStyle, pillButtonStyle, INSET_0 } from './theme';
 
 interface ErrorBoundaryState {
   error: Error | null;
@@ -58,7 +58,7 @@ export class ErrorBoundary extends React.Component<
         role="alert"
         style={{
           position: 'fixed',
-          inset: 0,
+          ...INSET_0,
           backgroundColor: '#000',
           color: '#fff',
           display: 'flex',

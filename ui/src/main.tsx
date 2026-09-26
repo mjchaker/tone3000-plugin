@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import { installKeyPassthrough } from './keyPassthrough.ts';
+import { installFlexGapShim } from './flexGapShim.ts';
 // Self-hosted Roboto Mono (bundled woff2, served from the plugin binary):
 // the DAW webview has no network, so no CDN fonts.
 import '@fontsource/roboto-mono/400.css';
@@ -22,6 +23,11 @@ window.addEventListener('drop', (e) => e.preventDefault());
 // Space and Enter are the DAW's transport keys, not ours: swallow them and
 // hand them to the host (see keyPassthrough.ts).
 installKeyPassthrough();
+
+// System WebKit before Safari 14.1 (inside the 13.1 floor, vite.config.ts)
+// ignores `gap` on flex containers; the shim rebuilds those gaps as margins
+// there and is never installed anywhere else (see flexGapShim.ts).
+installFlexGapShim();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

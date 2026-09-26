@@ -6,7 +6,7 @@ import { clamp, hasGain, TYPE_GLYPHS } from './eqShared';
 import { BODY_PADDING } from './chainLayout';
 import { HELP, helpProps, pinHelp, unpinHelp } from './helpText';
 import { getUiScale } from '../hooks/useUiScale';
-import { DISABLED_OPACITY } from './theme';
+import { DISABLED_OPACITY, INSET_0 } from './theme';
 
 /**
  * Mesa-style graphic-EQ view: six gain faders mirroring the same bands as
@@ -136,7 +136,7 @@ export const EqSliders: React.FC<EqSlidersProps> = ({
     <div
       style={{
         position: 'absolute',
-        inset: 0,
+        ...INSET_0,
         display: 'flex',
         flexDirection: 'column',
         // Spectrum/dB rules bleed edge-to-edge behind; faders + labels keep
@@ -195,7 +195,7 @@ export const EqSliders: React.FC<EqSlidersProps> = ({
         <div
           style={{
             position: 'absolute',
-            inset: 0,
+            ...INSET_0,
             display: 'flex',
             padding: `0 ${BODY_PADDING}rem`,
           }}
