@@ -39,6 +39,7 @@ import {
   segmentedCellStyle,
   segmentedGroupStyle,
   uiOffClass,
+  INSET_0,
 } from './theme';
 
 /**
@@ -441,14 +442,14 @@ export const BlockEqView: React.FC<BlockEqViewProps> = ({
             height="100%"
             viewBox={`0 0 ${GRAPH_W} ${GRAPH_H}`}
             preserveAspectRatio="none"
-            style={{ display: 'block', position: 'absolute', inset: 0 }}
+            style={{ display: 'block', position: 'absolute', ...INSET_0 }}
           >
             <SpectrumBackdrop blockId={blockId} />
           </svg>
           {/* Bypassed EQ: faders dim and go inert (uiOffClass). */}
           <div
             className={uiOffClass(!eqEnabled)}
-            style={{ position: 'absolute', inset: 0, transition: 'opacity 0.2s ease' }}
+            style={{ position: 'absolute', ...INSET_0, transition: 'opacity 0.2s ease' }}
           >
             <EqSliders
               bands={bands}
@@ -464,7 +465,7 @@ export const BlockEqView: React.FC<BlockEqViewProps> = ({
           height="100%"
           viewBox={`0 0 ${GRAPH_W} ${GRAPH_H}`}
           preserveAspectRatio="none"
-          style={{ display: 'block', position: 'absolute', inset: 0 }}
+          style={{ display: 'block', position: 'absolute', ...INSET_0 }}
         >
           {/* Grid */}
           {GRID_FREQS.map((f) => {

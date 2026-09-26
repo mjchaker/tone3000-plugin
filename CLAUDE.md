@@ -169,7 +169,10 @@ to re-anchor these. Never edit `libs/` directly; it is gitignored and regenerate
   nothing paints an opaque panel over the root's `AMBIENT_BACKGROUND`.
 - **WebKit floor**: `vite.config.ts` pins `build.target` to `safari13` because the
   plugin runs in old system WebKits. Do not raise it or use syntax it cannot parse;
-  a parse error is a silent black window.
+  a parse error is a silent black window. The runtime floor is Safari 13.1, where
+  newer CSS is silently dropped: spread `INSET_0` (theme.ts) instead of `inset`
+  (`webkitFloor.test.ts` guards it), and flex `gap` works there only through
+  `flexGapShim.ts`, which rebuilds inline flex gaps as margins on engines that lack them.
 - **Comments over speculation**: the codebase explains the why of every
   non-obvious decision in a comment at the site. Match that; the PR template asks
   for no speculative fallbacks or dead code.

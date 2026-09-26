@@ -70,6 +70,13 @@ export const GLASS_BACKGROUND =
 export const GLASS_SHADOW =
   'inset 0 1rem 0 rgba(255, 255, 255, 0.28), inset 0 -1rem 0 rgba(255, 255, 255, 0.05), 0 10rem 32rem rgba(0, 0, 0, 0.5)';
 export const GLASS_BLUR = 'blur(28rem) saturate(170%)';
+
+/** `inset: 0` spelled out: the shorthand is Safari 14.1+, and the system
+    WebKit floor is 13.1 (vite.config.ts), where it is dropped and an
+    absolute overlay collapses to its content box. Spread it next to
+    `position`. */
+export const INSET_0 = { top: 0, right: 0, bottom: 0, left: 0 } as const;
+
 export const glassStyle: CSSProperties = {
   background: GLASS_BACKGROUND,
   WebkitBackdropFilter: GLASS_BLUR,

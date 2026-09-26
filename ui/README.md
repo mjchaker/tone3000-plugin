@@ -30,7 +30,10 @@ JUCE backend, so the usual loop is `npm run build` followed by a plugin build.
 
 The bundle must stay runnable on old system WebKits (macOS 10.15 is Safari
 13-15 era, Linux WebKitGTK varies by distro), so `vite.config.ts` pins
-`build.target` low; don't raise it casually. If the UI ever fails to boot,
+`build.target` low; don't raise it casually. The runtime floor is Safari 13.1,
+which drops CSS it doesn't know without an error: `inset` becomes `INSET_0`
+from `theme.ts`, and inline flex `gap` is rebuilt as margins by
+`src/flexGapShim.ts` on engines without flex gap. If the UI ever fails to boot,
 the watchdog in `index.html` writes the reason to the plugin's native log.
 
 ## How it talks to the plugin

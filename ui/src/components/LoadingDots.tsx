@@ -1,4 +1,5 @@
 import React from 'react';
+import { INSET_0 } from './theme';
 
 /**
  * Ports of the tone3000.com loading patterns:
@@ -40,7 +41,7 @@ export const BusyOverlay: React.FC<BusyOverlayProps> = ({ align = 'top', zIndex 
   <div
     style={{
       position: 'absolute',
-      inset: 0,
+      ...INSET_0,
       display: 'flex',
       alignItems: align === 'top' ? 'flex-start' : 'center',
       justifyContent: 'center',

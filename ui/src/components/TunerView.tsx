@@ -9,6 +9,7 @@ import {
   GRAY,
   SURFACE_RAISED,
   WHITE,
+  INSET_0,
 } from './theme';
 
 interface TunerReading {
@@ -153,7 +154,7 @@ export const TunerView: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <div
                 style={{
                   position: 'absolute',
-                  inset: 0,
+                  ...INSET_0,
                   backgroundColor: SURFACE_RAISED,
                   clipPath,
                 }}
@@ -161,7 +162,7 @@ export const TunerView: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <div
                 style={{
                   position: 'absolute',
-                  inset: 0,
+                  ...INSET_0,
                   backgroundColor: SIDE_COLORS[i],
                   clipPath,
                   opacity: lit ? 1 : 0,

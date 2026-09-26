@@ -25,7 +25,16 @@ import type { TileMenuAnchor, TileMenuItem } from './TileMenu';
 import type { ChainActions } from '../hooks/useChainActions';
 import { useToast } from './Toast';
 import { formatLabel, gearLabel } from '../t3k/labels';
-import { ARTWORK_BG, FONT_MONO, GLASS_CLASS, GRAY, ICON_SIZE, MUTED, WHITE } from './theme';
+import {
+  ARTWORK_BG,
+  FONT_MONO,
+  GLASS_CLASS,
+  GRAY,
+  ICON_SIZE,
+  MUTED,
+  WHITE,
+  INSET_0,
+} from './theme';
 
 /**
  * Gallery view of a chain block: a square tone image with quick actions
@@ -215,7 +224,7 @@ const TileSurface: React.FC<{
           <div
             style={{
               position: 'absolute',
-              inset: 0,
+              ...INSET_0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -227,7 +236,7 @@ const TileSurface: React.FC<{
           <div
             style={{
               position: 'absolute',
-              inset: 0,
+              ...INSET_0,
               opacity: enabled && !busy && !block.loadFailed ? 1 : 0.35,
               transition: 'opacity 0.2s ease',
             }}
@@ -250,7 +259,7 @@ const TileSurface: React.FC<{
           <div
             style={{
               position: 'absolute',
-              inset: 0,
+              ...INSET_0,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
