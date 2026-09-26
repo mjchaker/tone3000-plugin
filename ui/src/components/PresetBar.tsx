@@ -162,6 +162,10 @@ const PresetRow: React.FC<PresetRowProps> = ({
           onChange={(e) => onRenameChange(e.target.value)}
           onBlur={onCommitRename}
           onKeyDown={(e) => {
+            // The browser's Escape-to-close listens on document; keep this
+            // field's keys to itself so Escape cancels just the rename
+            // (same as the knob and EQ value editors).
+            e.stopPropagation();
             if (e.key === 'Enter') onCommitRename();
             if (e.key === 'Escape') onCancelRename();
           }}
