@@ -94,6 +94,23 @@ describe('PresetBar inline rename', () => {
     expect(searchBox()).toBeNull();
   });
 
+  // Icon-only row actions repeat on every row, so each names its preset.
+  it('names the icon buttons for screen readers', () => {
+    key(renameBox()!, 'Escape');
+    const labels = [...container.querySelectorAll('button[aria-label]')].map((b) =>
+      b.getAttribute('aria-label')
+    );
+    expect(labels).toEqual(
+      expect.arrayContaining([
+        'Previous Preset',
+        'Next Preset',
+        'Save Preset',
+        'Rename Crunch',
+        'Delete Crunch',
+      ])
+    );
+  });
+
   it('commits on Enter', () => {
     key(renameBox()!, 'Enter');
     expect(onRename).toHaveBeenCalledWith('user:crunch', 'Crunch');

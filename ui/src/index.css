@@ -174,15 +174,20 @@ svg {
   text-box: trim-both cap alphabetic;
 }
 
-/* Remove focus highlight for knobs */
+/* Knobs take focus on every click (KnobControl focuses them on
+   pointerdown), which must not draw a ring. Keyboard focus does: they are
+   in the tab order and arrow-key adjustable, so the focused one has to be
+   findable. WebKit before :focus-visible drops the second rule and shows
+   no ring, the old behavior. */
 .knob:focus {
   outline: none;
   box-shadow: none;
 }
 
 .knob:focus-visible {
-  outline: none;
-  box-shadow: none;
+  outline: 2rem solid rgba(255, 255, 255, 0.86);
+  outline-offset: 3rem;
+  border-radius: 50%;
 }
 
 .knob {

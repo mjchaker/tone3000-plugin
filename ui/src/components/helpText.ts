@@ -90,6 +90,14 @@ export const useHelpText = () => useSyncExternalStore(subscribe, snapshot);
 /** Spread onto any element to drive the readout from hover. */
 export const helpProps = (text: string) => ({ [HELP_ATTR]: text });
 
+/** A hint's leading name (the text before its first colon, per the copy
+    conventions below): the accessible name for icon-only controls, whose
+    glyph alone announces nothing to a screen reader. */
+export const helpName = (text: string) => {
+  const colon = text.indexOf(':');
+  return colon > 0 ? text.slice(0, colon) : text;
+};
+
 // --- visibility preference ---------------------------------------------------
 
 // Whether the hint bar shows at all. A per-machine UI preference, not part
