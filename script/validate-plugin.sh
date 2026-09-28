@@ -125,7 +125,9 @@ for format in "${formats[@]}"; do
         continue
       fi
       target="$artefacts/CLAP/TONE3000.clap"
-      if [ ! -d "$target" ]; then
+      # A bundle directory on macOS but a single shared object on Linux and
+      # Windows, so test for existence, not for a directory.
+      if [ ! -e "$target" ]; then
         echo "Not found: $target (build it first: cmake --build build)" >&2
         failures+=(CLAP)
         continue
