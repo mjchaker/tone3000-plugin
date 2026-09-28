@@ -121,6 +121,13 @@ endif()
 
 juce_add_plugin(${PROJECT_NAME}
     COMPANY_NAME TONE3000
+    # Shown in host plugin info and written into the LV2 manifest's
+    # maintainer; unset, LV2 emits empty <> links that resolve to dsp.ttl.
+    # The email is a mailto: URI because LV2 writes it verbatim as the
+    # foaf:mbox link (a bare address resolves relative to the bundle), and
+    # the VST3 SDK's own factory-info examples use the same form.
+    COMPANY_WEBSITE "https://www.tone3000.com"
+    COMPANY_EMAIL "mailto:support@tone3000.com"
     PLUGIN_NAME ${PLUGIN_NAME}
     IS_SYNTH FALSE
     # Pro Tools insert folders. Unset is None ("Other"). Harmonic is where
