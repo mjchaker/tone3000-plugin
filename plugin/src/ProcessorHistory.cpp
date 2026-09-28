@@ -196,6 +196,12 @@ TONE3000Processor::Lane TONE3000Processor::restoreChainSnapshot(const juce::Valu
       if (b)
         pool[b->id] = std::move(b);
 
+  // Reserve both lanes' insert ids before either is reconciled: padding the
+  // left lane numbers new slots before the right lane's ids are read, and a
+  // preset or project from another instance can carry any insert-N.
+  reserveInsertIds(snapshot.getChildWithName("ChainBlocks"));
+  reserveInsertIds(snapshot.getChildWithName("RightChainBlocks"));
+
   reconcileChainFromTree(snapshot.getChildWithName("ChainBlocks"), lane(ChainSide::Left), pool);
   reconcileChainFromTree(snapshot.getChildWithName("RightChainBlocks"), lane(ChainSide::Right),
                          pool);

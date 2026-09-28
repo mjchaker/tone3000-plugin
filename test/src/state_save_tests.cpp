@@ -115,3 +115,62 @@ TEST(StateSaveTest, EmbeddedModelsRoundTripByteForByte) {
   reopened.getStateInformation(resaved);
   EXPECT_TRUE(saved == resaved) << "state did not survive a save/reopen/save cycle intact";
 }
+
+// Hosts compare saved state to decide whether a session changed, and CLAP's
+// validator saves two fresh instances given the same parameters and expects
+// identical bytes. Empty insert slots used to take random UUIDs, so no two
+// instances ever saved the same state.
+TEST(StateSaveTest, FreshInstancesSaveIdenticalState) {
+  ChainTestProcessor first;
+  ChainTestProcessor second;
+
+  juce::MemoryBlock a, b;
+  first.getStateInformation(a);
+  second.getStateInformation(b);
+  EXPECT_TRUE(a == b) << "two untouched instances saved different state";
+}
+
+// Insert ids are now a per-instance sequence (insert-1, insert-2, ...), so a
+// restored state can carry ids the sequence would hand out next. Restoring
+// reconciles the left lane (padding it when it's short) before the right
+// lane's ids are seen; every id must still come out unique across both lanes.
+TEST(StateSaveTest, RestoredInsertIdsNeverCollideWithNewOnes) {
+  juce::ValueTree state("ChainSnapshot");
+  state.setProperty("stereoEnabled", true, nullptr);
+
+  // A lone tone and no inserts: restore pads this lane with fresh slots.
+  juce::ValueTree left("ChainBlocks");
+  left.appendChild(makeIrBlockTree("blk-a", 1, 100), nullptr);
+  state.appendChild(left, nullptr);
+
+  // Ids a fresh instance (insert-1..insert-10 after construction) would
+  // generate next.
+  juce::ValueTree right("RightChainBlocks");
+  for (int i = 11; i <= 15; ++i) {
+    juce::ValueTree slot("ChainBlock");
+    slot.setProperty("id", "insert-" + juce::String(i), nullptr);
+    slot.setProperty("type", "insert", nullptr);
+    right.appendChild(slot, nullptr);
+  }
+  state.appendChild(right, nullptr);
+
+  ChainTestProcessor proc;
+  proc.restoreFromTree(state);
+
+  const juce::var chain = proc.getChainState(-1);
+  std::vector<juce::String> ids;
+  for (const char* laneKey : {"chain", "chainRight"})
+    if (const auto* lane = chain[laneKey].getArray())
+      for (const auto& item : *lane)
+        ids.push_back(item["blockId"].toString());
+
+  ASSERT_EQ(ids.size(), 10u);  // 1 tone + 4 padded inserts, then 5 inserts
+  EXPECT_EQ(ids[0], "blk-a");
+  for (int i = 0; i < 5; ++i)
+    EXPECT_EQ(ids[static_cast<size_t>(5 + i)], "insert-" + juce::String(11 + i))
+        << "a restored insert id was not kept";
+  std::vector<juce::String> sorted = ids;
+  std::sort(sorted.begin(), sorted.end());
+  EXPECT_EQ(std::adjacent_find(sorted.begin(), sorted.end()), sorted.end())
+      << "two blocks share an id";
+}
