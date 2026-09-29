@@ -613,7 +613,7 @@ private:
 
   // Enforce the lane's insert-slot invariant after any structural change:
   // insertCount == max(kMinLaneSlots - toneCount, 1). Shortfalls append fresh
-  // placeholders (UUID ids) at the end; overshoot trims inserts from the end
+  // placeholders (numbered ids, see newInsertId) at the end; overshoot trims inserts from the end
   // so slots the user positioned earlier in the lane stay put. Inserts own no
   // engines, so add/remove is trivially cheap. Caller holds chainMutex.
   void normalizeLaneInserts(Lane& l);
@@ -763,6 +763,17 @@ private:
   std::array<Lane, kNumLanes> lanes;
   Lane& lane(ChainSide side) { return lanes[static_cast<size_t>(laneIndex(side))]; }
   const Lane& lane(ChainSide side) const { return lanes[static_cast<size_t>(laneIndex(side))]; }
+
+  // Empty insert slots are numbered, not random: insert-1, insert-2, ... in
+  // creation order, so two instances that went through the same edits save
+  // the same bytes. Hosts compare saved state to detect changes, and CLAP's
+  // validator saves two fresh instances and expects them to match. Ids stay
+  // unique across both lanes because a restore reserves every insert-N it
+  // brings in (reserveInsertIds) before anything new is numbered; tone
+  // blocks keep UUIDs, which can't take this form. Guarded by chainMutex.
+  int nextInsertSerial = 1;
+  std::string newInsertId();
+  void reserveInsertIds(const juce::ValueTree& chainState);
 
   std::atomic<bool> stereoEnabled{false};
   // Which lane loadTone inserts into. Set by the UI before launching the

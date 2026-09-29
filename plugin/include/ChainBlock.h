@@ -55,7 +55,7 @@ constexpr int kMinLaneSlots = 5;
 
 // Chain block data structure
 struct ChainBlock {
-  std::string id;  // Chain block UUID
+  std::string id;  // Tone blocks: UUID. Insert placeholders: "insert-N" (newInsertId)
   ChainBlockType type;
 
   // Tone metadata (full tone JSON stored for complete state persistence)

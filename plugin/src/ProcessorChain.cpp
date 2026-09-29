@@ -49,9 +49,26 @@ void TONE3000Processor::normalizeLaneInserts(Lane& l) {
   }
 
   while (inserts < required) {
-    l.push_back(std::make_unique<ChainBlock>(juce::Uuid().toString().toStdString(),
-                                             ChainBlockType::INSERT));
+    l.push_back(std::make_unique<ChainBlock>(newInsertId(), ChainBlockType::INSERT));
     ++inserts;
+  }
+}
+
+std::string TONE3000Processor::newInsertId() {
+  return "insert-" + std::to_string(nextInsertSerial++);
+}
+
+void TONE3000Processor::reserveInsertIds(const juce::ValueTree& chainState) {
+  for (int i = 0; i < chainState.getNumChildren(); ++i) {
+    const juce::String id = chainState.getChild(i).getProperty("id").toString();
+    if (!id.startsWith("insert-"))
+      continue;
+    // At most 9 digits keeps N + 1 inside int. A longer (hand-edited) id
+    // can't collide anyway: the sequence never gets that far.
+    const juce::String digits = id.substring(7);
+    if (digits.isEmpty() || digits.length() > 9 || !digits.containsOnly("0123456789"))
+      continue;
+    nextInsertSerial = std::max(nextInsertSerial, digits.getIntValue() + 1);
   }
 }
 
